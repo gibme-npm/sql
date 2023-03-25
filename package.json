@@ -1,0 +1,89 @@
+{
+  "name": "@gibme/sql",
+  "version": "1.0.6",
+  "description": "A simple helper/wrapper for common DBMS",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./mysql": "./dist/mysql.js",
+    "./postgres": "./dist/postgres.js",
+    "./sqlite": "./dist/sqlite.js",
+    "./types": "./dist/types.js"
+  },
+  "typesVersions": {
+    "*": {
+      "mysql": [
+        "./dist/mysql.d.ts"
+      ],
+      "postgres": [
+        "./dist/postgres.d.ts"
+      ],
+      "sqlite": [
+        "./dist/sqlite.d.ts"
+      ],
+      "types": [
+        "./dist/types.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist/*"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "yarn build:typescript",
+    "build:docs": "./node_modules/.bin/typedoc",
+    "build:typescript": "./node_modules/.bin/tsc",
+    "test": "yarn test:style && yarn test:mocha",
+    "test:style": "yarn style",
+    "test:mocha": "./node_modules/.bin/mocha --exit --timeout 120000 --require ts-node/register test/test.ts",
+    "style": "./node_modules/.bin/eslint src/**/*.ts test/**/*.ts",
+    "fix-style": "./node_modules/.bin/eslint --fix src/**/*.ts test/**/*.ts",
+    "fix:style": "yarn fix-style",
+    "prepublishOnly": "yarn build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gibme-npm/sql.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gibme-npm/sql/issues"
+  },
+  "homepage": "https://gibme-npm.github.io/sql/",
+  "engines": {
+    "node": ">=16"
+  },
+  "engineStrict": true,
+  "author": {
+    "name": "Brandon Lehmann",
+    "email": "brandonlehmann@gmail.com"
+  },
+  "dependencies": {
+    "@types/mysql": "^2.15.21",
+    "@types/pg": "^8.6.6",
+    "@types/pg-format": "^1.0.2",
+    "@types/sqlite3": "^3.1.8",
+    "mysql": "^2.18.1",
+    "pg": "^8.10.0",
+    "pg-format": "^1.0.4",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^18.11.9",
+    "@typescript-eslint/eslint-plugin": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.0",
+    "dotenv": "^16.0.3",
+    "eslint": "^8.26.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-n": "^15.4.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "mocha": "^10.1.0",
+    "ts-node": "^10.9.1",
+    "typedoc": "^0.23.21",
+    "typescript": "^4.8.4"
+  }
+}

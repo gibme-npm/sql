@@ -1,0 +1,14 @@
+{
+  "out": "./docs",
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "entryPoints": [
+    "./src/mysql.ts",
+    "./src/postgres.ts",
+    "./src/sqlite.ts",
+    "./src/types.ts"
+  ],
+  "disableSources": true,
+  "hideGenerator": true,
+  "githubPages": true
+}
