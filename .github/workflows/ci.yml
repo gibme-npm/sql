@@ -38,7 +38,7 @@ jobs:
         PGSQL_USER: ${{ secrets.PGSQL_USER }}
         PGSQL_PASSWORD: ${{ secrets.PGSQL_PASSWORD }}
         PGSQL_DATABASE: ${{ secrets.PGSQL_DATABASE }}
-        SQL_TABLE: ${{ matrix.os }}-${{ matrix.node }}-${{ github.sha }}
+        SQL_TABLE: ${{ matrix.os }}-${{ matrix.node }}-${{ github.sha }}-${{ github.event_name }}
     - name: Publish to NPM
       if: matrix.node == '16' && matrix.os == 'ubuntu-latest' && github.event_name == 'release'
       env:

@@ -168,7 +168,9 @@ fabric.properties
 .idea/
 dist/
 logs/
+docs/
 
 *.db
 *.sqlite3
 *.sqlite
+
