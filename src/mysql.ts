@@ -19,10 +19,8 @@
 // SOFTWARE.
 
 import { createPool, escape, escapeId, Pool, PoolConfig, PoolConnection } from 'mysql';
-import { EventEmitter } from 'events';
 import {
     Column,
-    Database,
     DatabaseType,
     ForeignKey,
     ForeignKeyConstraint,
@@ -30,12 +28,12 @@ import {
     QueryMetaData,
     QueryResult
 } from './types';
-import { prepareCreateTable, prepareMultiInsert, prepareMultiUpdate } from './common';
+import Database from './database';
 
 export { PoolConfig, escapeId, escape };
 export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData };
 
-export default class MySQL extends EventEmitter implements Database {
+export default class MySQL extends Database {
     public readonly pool: Pool;
     public tableOptions = 'ENGINE=InnoDB PACK_KEYS=1 ROW_FORMAT=COMPRESSED';
 
@@ -44,11 +42,14 @@ export default class MySQL extends EventEmitter implements Database {
      *
      * @param config
      */
-    constructor (public readonly config: PoolConfig & { rejectUnauthorized?: boolean }) {
+    constructor (public readonly config: PoolConfig & { rejectUnauthorized?: boolean } = {}) {
         super();
 
+        this.config.host ??= '127.0.0.1';
+        this.config.port ??= 3306;
+        this.config.user ??= '';
+        this.config.connectTimeout ??= 30_000;
         this.config.rejectUnauthorized ??= false;
-
         this.config.ssl ||= {
             rejectUnauthorized: this.config.rejectUnauthorized
         };
@@ -60,6 +61,10 @@ export default class MySQL extends EventEmitter implements Database {
         this.pool.on('connection', connection => this.emit('connection', connection));
         this.pool.on('enqueue', () => this.emit('enqueue'));
         this.pool.on('release', connection => this.emit('release', connection));
+    }
+
+    public static get type (): string {
+        return 'MySQL';
     }
 
     /**
@@ -416,7 +421,7 @@ export default class MySQL extends EventEmitter implements Database {
         columns: string[] = [],
         values: any[][]
     ): Query[] {
-        return prepareMultiInsert(DatabaseType.MYSQL, table, columns, values, escapeId);
+        return this._prepareMultiInsert(DatabaseType.MYSQL, table, columns, values, escapeId);
     }
 
     /**
@@ -436,7 +441,7 @@ export default class MySQL extends EventEmitter implements Database {
         columns: string[],
         values: any[][]
     ): Query[] {
-        return prepareMultiUpdate(DatabaseType.MYSQL, table, primaryKey, columns, values, escapeId);
+        return this._prepareMultiUpdate(DatabaseType.MYSQL, table, primaryKey, columns, values, escapeId);
     }
 
     /**
@@ -454,7 +459,7 @@ export default class MySQL extends EventEmitter implements Database {
         primaryKey: string[],
         tableOptions = this.tableOptions
     ): Query[] {
-        return prepareCreateTable(name, fields, primaryKey, tableOptions, escapeId);
+        return this._prepareCreateTable(name, fields, primaryKey, tableOptions, escapeId);
     }
 
     /**

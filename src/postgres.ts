@@ -18,10 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { EventEmitter } from 'events';
 import {
     Column,
-    Database,
     DatabaseType,
     ForeignKey,
     ForeignKeyConstraint,
@@ -31,7 +29,7 @@ import {
 } from './types';
 import { Pool, PoolClient, PoolConfig } from 'pg';
 import pgformat from 'pg-format';
-import { prepareCreateTable, prepareMultiInsert, prepareMultiUpdate } from './common';
+import Database from './database';
 
 export { PoolConfig };
 export { QueryMetaData, Query, QueryResult, ForeignKey, ForeignKeyConstraint, Column };
@@ -44,7 +42,7 @@ const escape = (value: string): string => pgformat('%L', value);
 
 export { escapeId, escape };
 
-export default class Postgres extends EventEmitter implements Database {
+export default class Postgres extends Database {
     public readonly pool: Pool;
     public tableOptions = '';
 
@@ -53,15 +51,16 @@ export default class Postgres extends EventEmitter implements Database {
      *
      * @param config
      */
-    constructor (public readonly config: PoolConfig & { rejectUnauthorized?: boolean }) {
+    constructor (public readonly config: PoolConfig & { rejectUnauthorized?: boolean } = {}) {
         super();
 
+        this.config.host ??= '127.0.0.1';
+        this.config.port ??= 5432;
+        this.config.user ??= '';
         this.config.rejectUnauthorized ??= false;
-
         this.config.ssl ??= {
             rejectUnauthorized: this.config.rejectUnauthorized
         };
-
         this.pool = new Pool(this.config);
 
         this.pool.on('connect', client => this.emit('connect', client));
@@ -69,6 +68,10 @@ export default class Postgres extends EventEmitter implements Database {
         this.pool.on('remove', client => this.emit('remove', client));
         this.pool.on('error', (error: Error, client: PoolClient) =>
             this.emit('error', error, client));
+    }
+
+    public static get type (): string {
+        return 'Postgres';
     }
 
     /**
@@ -420,7 +423,7 @@ export default class Postgres extends EventEmitter implements Database {
         columns: string[] = [],
         values: any[][]
     ): Query[] {
-        return prepareMultiInsert(DatabaseType.POSTGRES, table, columns, values, escapeId);
+        return this._prepareMultiInsert(DatabaseType.POSTGRES, table, columns, values, escapeId);
     }
 
     /**
@@ -440,7 +443,7 @@ export default class Postgres extends EventEmitter implements Database {
         columns: string[],
         values: any[][]
     ): Query[] {
-        return prepareMultiUpdate(DatabaseType.POSTGRES, table, primaryKey, columns, values, escapeId);
+        return this._prepareMultiUpdate(DatabaseType.POSTGRES, table, primaryKey, columns, values, escapeId);
     }
 
     /**
@@ -456,7 +459,7 @@ export default class Postgres extends EventEmitter implements Database {
         primaryKey: string[],
         tableOptions = this.tableOptions
     ): Query[] {
-        return prepareCreateTable(name, fields, primaryKey, tableOptions, escapeId);
+        return this._prepareCreateTable(name, fields, primaryKey, tableOptions, escapeId);
     }
 
     /**

@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { describe } from 'mocha';
-import { Postgres, MySQL, SQLite } from '../src';
+import { describe, after } from 'mocha';
+import { Postgres, MySQL, SQLite, PostgresPoolConfig, MySQLPoolConfig, SQLiteConfig } from '../src';
 import { runTests, test_table } from './common';
 import { config } from 'dotenv';
 import { resolve } from 'path';
@@ -29,73 +29,54 @@ const test_db = resolve(`${process.cwd()}/${test_table}.sqlite3`);
 
 config();
 
-describe('SQLite Unit Tests', async () => {
-    const sqlite = new SQLite({
-        filename: test_db
+const engines = [SQLite, MySQL, Postgres];
+
+for (const Engine of engines) {
+    describe(Engine.type, async function () {
+        const config: any = (() => {
+            switch (Engine.type.toLowerCase()) {
+                case 'sqlite':
+                    return { filename: test_db } as SQLiteConfig;
+                case 'mysql':
+                    return {
+                        host: process.env.MYSQL_HOST,
+                        port: process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT) : undefined,
+                        user: process.env.MYSQL_USER,
+                        password: process.env.MYSQL_PASSWORD,
+                        database: process.env.MYSQL_DATABASE,
+                        connectTimeout: 30_000
+                    } as MySQLPoolConfig;
+                case 'postgres':
+                    return {
+                        host: process.env.PGSQL_HOST,
+                        port: process.env.PGSQL_PORT ? parseInt(process.env.PGSQL_PORT) : undefined,
+                        user: process.env.PGSQL_USER,
+                        password: process.env.PGSQL_PASSWORD,
+                        database: process.env.PGSQL_DATABASE
+                    } as PostgresPoolConfig;
+            }
+        })();
+
+        const storage = new Engine(config);
+
+        before(async () => {
+            await storage.dropTable(test_table);
+        });
+
+        after(async () => {
+            await storage.dropTable(test_table);
+
+            await storage.close();
+
+            if (Engine.type.toLowerCase() === 'sqlite') {
+                try {
+                    await unlink(test_db);
+                } catch {}
+            }
+        });
+
+        describe('Unit Tests', () => {
+            runTests(storage, Engine.escapeId);
+        });
     });
-
-    before(async () => {
-        await sqlite.dropTable(test_table);
-    });
-
-    after(async () => {
-        await sqlite.dropTable(test_table);
-
-        await sqlite.close();
-
-        try {
-            await unlink(test_db);
-        } catch {}
-    });
-
-    describe('', () => {
-        runTests(sqlite, SQLite.escapeId);
-    });
-});
-
-describe('MySQL Unit Tests', async () => {
-    const mysql = new MySQL({
-        host: process.env.MYSQL_HOST || '127.0.0.1',
-        user: process.env.MYSQL_USER || '',
-        password: process.env.MYSQL_PASSWORD || undefined,
-        database: process.env.MYSQL_DATABASE || undefined,
-        connectTimeout: 30_000
-    });
-
-    before(async () => {
-        await mysql.dropTable(test_table);
-    });
-
-    after(async () => {
-        await mysql.dropTable(test_table);
-
-        await mysql.close();
-    });
-
-    describe('', () => {
-        runTests(mysql, MySQL.escapeId);
-    });
-});
-
-describe('Postgres Unit Tests', async () => {
-    const postgres = new Postgres({
-        host: process.env.PGSQL_HOST || '127.0.0.1',
-        user: process.env.PGSQL_USER || '',
-        password: process.env.PGSQL_PASSWORD || undefined,
-        database: process.env.PGSQL_DATABASE || undefined
-    });
-
-    before(async () => {
-        await postgres.dropTable(test_table);
-    });
-
-    after(async () => {
-        await postgres.dropTable(test_table);
-
-        await postgres.close();
-    });
-
-    describe('', () => {
-        runTests(postgres, Postgres.escapeId);
-    });
-});
+}

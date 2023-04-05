@@ -19,23 +19,19 @@
 // SOFTWARE.
 
 import sqlite3 from 'sqlite3';
-import { EventEmitter } from 'events';
 import {
     Column,
-    Database,
     DatabaseType,
     ForeignKey,
     ForeignKeyConstraint,
     Query,
     QueryMetaData,
-    QueryResult,
-    QueueEntryType,
-    QueueEntry
+    QueryResult
 } from './types';
-import { prepareCreateTable, prepareMultiInsert, prepareMultiUpdate } from './common';
 import { escape, escapeId } from 'mysql';
 import { resolve } from 'path';
 import { DatabaseOpenMode, getConnection, OpenMode, SQLiteDatabase } from './sqlite_instance';
+import Database from './database';
 
 export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData };
 export { escape, escapeId, OpenMode, DatabaseOpenMode };
@@ -66,7 +62,27 @@ export interface DatabaseConfig {
 /** @ignore */
 const sleep = async (timeout: number) => new Promise(resolve => setTimeout(resolve, timeout));
 
-export default class SQLite extends EventEmitter implements Database {
+/** @ignore */
+interface Callback<Type = any> {
+    callback: (error: Error | undefined, results?: QueryResult<Type>[]) => void;
+}
+
+/** @ignore */
+enum QueueEntryType {
+    TRANSACTION,
+    ALL,
+    RUN
+}
+
+/** @ignore */
+interface QueueEntry<Type = any> extends Callback<Type> {
+    type: QueueEntryType;
+    query?: string;
+    values?: any[];
+    queries?: Query[];
+}
+
+export default class SQLite extends Database {
     public tableOptions = '';
     public readonly config: DatabaseConfig = {
         filename: ':memory:',
@@ -178,6 +194,10 @@ export default class SQLite extends EventEmitter implements Database {
      */
     public static verbose () {
         return sqlite3.verbose();
+    }
+
+    public static get type (): string {
+        return 'SQLite';
     }
 
     /**
@@ -605,7 +625,7 @@ export default class SQLite extends EventEmitter implements Database {
         columns: string[] = [],
         values: any[][]
     ): Query[] {
-        return prepareMultiInsert(DatabaseType.SQLITE, table, columns, values, escapeId);
+        return this._prepareMultiInsert(DatabaseType.SQLITE, table, columns, values, escapeId);
     }
 
     /**
@@ -625,7 +645,7 @@ export default class SQLite extends EventEmitter implements Database {
         columns: string[],
         values: any[][]
     ): Query[] {
-        return prepareMultiUpdate(DatabaseType.SQLITE, table, primaryKey, columns, values, escapeId);
+        return this._prepareMultiUpdate(DatabaseType.SQLITE, table, primaryKey, columns, values, escapeId);
     }
 
     /**
@@ -641,7 +661,7 @@ export default class SQLite extends EventEmitter implements Database {
         primaryKey: string[],
         tableOptions = this.tableOptions
     ): Query[] {
-        return prepareCreateTable(name, fields, primaryKey, tableOptions, escapeId);
+        return this._prepareCreateTable(name, fields, primaryKey, tableOptions, escapeId);
     }
 
     /**

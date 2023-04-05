@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import Postgres from './postgres';
-import MySQL from './mysql';
-import SQLite from './sqlite';
+import Postgres, { PoolConfig as PostgresPoolConfig } from './postgres';
+import MySQL, { PoolConfig as MySQLPoolConfig } from './mysql';
+import SQLite, { DatabaseConfig as SQLiteConfig } from './sqlite';
+import Database from './database';
 
 export * from './types';
 
 export default {
     Postgres,
     MySQL,
-    SQLite
+    SQLite,
+    Database
 };
 
-export { Postgres, MySQL, SQLite };
+export { Postgres, MySQL, SQLite, Database, PostgresPoolConfig, MySQLPoolConfig, SQLiteConfig };
