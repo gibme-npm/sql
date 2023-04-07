@@ -21,26 +21,11 @@
 import sqlite3 from 'sqlite3';
 import { Column, DatabaseType, ForeignKey, ForeignKeyConstraint, Query, QueryMetaData, QueryResult } from './types';
 import { resolve } from 'path';
-import { DatabaseOpenMode, getConnection, OpenMode, SQLiteDatabase } from './sqlite_instance';
+import SQLiteInstanceManager, { DatabaseOpenMode, OpenMode, SQLiteInstance } from './sqlite_instance_manager';
 import Database from './database';
 
 export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData };
 export { OpenMode, DatabaseOpenMode };
-
-/** @ignore */
-const pragmaFunctionCalls = [
-    'quick_check',
-    'integrity_check',
-    'incremental_vacuum',
-    'foreign_key_check',
-    'foreign_key_list',
-    'index_info',
-    'index_list',
-    'index_xinfo',
-    'table_info',
-    'table_xinfo',
-    'optimize'
-];
 
 export interface DatabaseConfig {
     filename: ':memory:' | string;
@@ -48,27 +33,6 @@ export interface DatabaseConfig {
     foreignKeys: boolean;
     WALmode: boolean;
     queueScanInterval: number;
-}
-
-/** @ignore */
-const sleep = async (timeout: number) => new Promise(resolve => setTimeout(resolve, timeout));
-
-/** @ignore */
-interface Callback<Type = any> {
-    callback: (error: Error | undefined, results?: QueryResult<Type>[]) => void;
-}
-
-/** @ignore */
-enum QueueEntryType {
-    TRANSACTION,
-    ALL,
-    RUN
-}
-
-/** @ignore */
-interface QueueEntry<Type = any> extends Callback<Type> {
-    type: QueueEntryType;
-    queries: Query[];
 }
 
 export default class SQLite extends Database {
@@ -80,10 +44,7 @@ export default class SQLite extends Database {
         queueScanInterval: 10
     };
 
-    private _statementQueue: QueueEntry[] = [];
-    private _stopping = false;
-
-    private database?: SQLiteDatabase;
+    private database?: SQLiteInstance;
 
     /**
      * Creates a new instance of the class
@@ -108,67 +69,10 @@ export default class SQLite extends Database {
         } else {
             this.config.filename = resolve(this.config.filename);
         }
-
-        /**
-         * This implements a queuing system inside this module to try to help
-         * to prevent data race conditions whereby a write request may not fully
-         * commit to the underlying database before a read request comes looking for it
-         */
-        (async () => {
-            while (!this._stopping) {
-                while (this._statementQueue.length > 0) {
-                    const entry = this._statementQueue.shift();
-
-                    if (!entry) {
-                        break;
-                    }
-
-                    try {
-                        switch (entry.type) {
-                            case QueueEntryType.TRANSACTION: {
-                                const results = await this._transaction(entry.queries);
-
-                                entry.callback(undefined, results);
-
-                                break;
-                            }
-                            case QueueEntryType.ALL: {
-                                const result = await this.all(entry.queries[0]);
-
-                                entry.callback(undefined, [result]);
-
-                                break;
-                            }
-                            case QueueEntryType.RUN: {
-                                const result = await this.run(entry.queries[0]);
-
-                                entry.callback(undefined, [result]);
-
-                                break;
-                            }
-                            default:
-                                entry.callback(new Error('Unknown query entry type'), []);
-                                break;
-                        }
-                    } catch (error: any) {
-                        entry.callback(error);
-                    }
-                }
-
-                await sleep(this.config.queueScanInterval);
-            }
-        })();
     }
 
     public static get type (): DatabaseType {
         return DatabaseType.SQLITE;
-    }
-
-    /**
-     * Returns the current statement queue length
-     */
-    public get queueLength (): number {
-        return this._statementQueue.length;
     }
 
     /**
@@ -196,34 +100,15 @@ export default class SQLite extends Database {
     }
 
     /**
-     * Closes the database
+     * Closes the database instance
+     *
+     * Note: closing the db using this method will kill the instance
+     * for all references to the instance
      */
     public async close (): Promise<void> {
-        this._stopping = true;
+        const instance = await this.getInstance();
 
-        /**
-         *  Don't close hte database connection while there is still
-         *  stuff waiting to get done
-         */
-        while (this._statementQueue.length !== 0) {
-            await sleep(this.config.queueScanInterval);
-        }
-
-        return new Promise((resolve, reject) => {
-            if (!this.database) {
-                return resolve();
-            }
-
-            this.database.close(error => {
-                if (error) {
-                    return reject(error);
-                }
-
-                delete this.database;
-
-                return resolve();
-            });
-        });
+        return instance.close();
     }
 
     /**
@@ -244,25 +129,9 @@ export default class SQLite extends Database {
      * @param option
      */
     public async getPragma (option: string): Promise<unknown> {
-        option = option.toLowerCase();
+        const instance = await this.getInstance();
 
-        /**
-         * Execute this call via the low-level calling system outside the normal
-         * queuing provided so that we do not mistakenly block the connection
-         */
-        const [rows] = await this.all<{ [key: string]: unknown }>({
-            query: `PRAGMA ${option}`
-        });
-
-        if (rows.length === 1) {
-            return rows[0][option];
-        } else {
-            if (rows[0][option]) {
-                return rows.map(elem => elem[option]);
-            }
-        }
-
-        return rows;
+        return instance.getPragma(option);
     }
 
     /**
@@ -274,14 +143,9 @@ export default class SQLite extends Database {
         option: string,
         value: boolean | number | string
     ): Promise<void> {
-        option = option.toLowerCase();
-        value = pragmaFunctionCalls.includes(option) ? `(${value})` : ` = ${value}`;
+        const instance = await this.getInstance();
 
-        /**
-         * Execute this call via the low-level calling system outside the normal
-         * queuing provided so that we do not mistakenly block the connection
-         */
-        await this.run({ query: `PRAGMA ${option}${value}` });
+        return instance.setPragma(option, value);
     }
 
     /**
@@ -311,55 +175,9 @@ export default class SQLite extends Database {
         query: string | Query,
         values: any[] = []
     ): Promise<QueryResult<RecordType>> {
-        return new Promise((resolve, reject) => {
-            if (typeof query === 'object') {
-                if (query.values) {
-                    values = query.values;
-                }
+        const instance = await this.getInstance();
 
-                query = query.query;
-            }
-
-            if (query.toLowerCase().startsWith('select')) {
-                this._statementQueue.push({
-                    queries: [{
-                        query,
-                        values
-                    }],
-                    type: QueueEntryType.ALL,
-                    callback: (error: Error | undefined, results) => {
-                        if (error) {
-                            return reject(error);
-                        }
-
-                        if (!results || results.length !== 1) {
-                            return reject(new Error('Malformed result received'));
-                        }
-
-                        return resolve(results[0]);
-                    }
-                });
-            } else {
-                this._statementQueue.push({
-                    queries: [{
-                        query,
-                        values
-                    }],
-                    type: QueueEntryType.RUN,
-                    callback: (error: Error | undefined, results) => {
-                        if (error) {
-                            return reject(error);
-                        }
-
-                        if (!results || results.length !== 1) {
-                            return reject(new Error('Malformed result received'));
-                        }
-
-                        return resolve(results[0]);
-                    }
-                });
-            }
-        });
+        return instance.query<RecordType>(query, values);
     }
 
     /**
@@ -370,136 +188,23 @@ export default class SQLite extends Database {
     public async transaction<RecordType = any> (
         queries: Query[]
     ): Promise<QueryResult<RecordType>[]> {
-        return new Promise((resolve, reject) => {
-            this._statementQueue.push({
-                queries,
-                type: QueueEntryType.TRANSACTION,
-                callback: (error: Error | undefined, result) => {
-                    if (error) {
-                        return reject(error);
-                    }
+        const instance = await this.getInstance();
 
-                    if (!result) {
-                        return reject(new Error('Malformed result received'));
-                    }
-
-                    return resolve(result);
-                }
-            });
-        });
+        return instance.transaction<RecordType>(queries);
     }
 
     /**
-     * Executes a low-level transaction call against the SQLite database connection
+     * Retrieves the SQLite database instance singleton
      *
-     * @param queries
-     * @protected
+     * @private
      */
-    protected async _transaction<RecordType = any> (
-        queries: Query[]
-    ): Promise<QueryResult<RecordType>[]> {
-        const connection = await this.connection();
-
-        try {
-            await connection.run('BEGIN');
-
-            const results: QueryResult<RecordType>[] = [];
-
-            for (const query of queries) {
-                if (query.query.toLowerCase().startsWith('select')) {
-                    results.push(await this.all(query, connection));
-                } else {
-                    results.push(await this.run(query, connection));
-                }
-            }
-
-            await connection.run('COMMIT');
-
-            return results;
-        } catch (error: any) {
-            await connection.run('ROLLBACK');
-
-            throw error;
-        }
-    }
-
-    /**
-     * Executes a low-level all call against the SQLite database connection
-     *
-     * @param query
-     * @param values
-     * @param connection
-     * @protected
-     */
-    protected async all<RecordType = any> (
-        query: Query,
-        connection?: SQLiteDatabase
-    ): Promise<QueryResult<RecordType>> {
-        connection ||= await this.connection();
-
-        return new Promise((resolve, reject) => {
-            connection?.all(query.query, query.values, function (error: Error | null, rows: any[]) {
-                if (error) {
-                    return reject(error);
-                }
-
-                return resolve([
-                    rows,
-                    {
-                        changedRows: 0,
-                        affectedRows: 0,
-                        length: rows.length
-                    },
-                    query
-                ]);
-            });
-        });
-    }
-
-    /**
-     * Executes a low-level run call against the SQLite database connection
-     *
-     * @param query
-     * @param connection
-     * @protected
-     */
-    protected async run<RecordType = any> (
-        query: Query,
-        connection?: SQLiteDatabase
-    ): Promise<QueryResult<RecordType>> {
-        connection ||= await this.connection();
-
-        return new Promise((resolve, reject) => {
-            connection?.run(query.query, query.values, function (error: Error | null) {
-                if (error) {
-                    return reject(error);
-                }
-
-                return resolve([
-                    [],
-                    {
-                        changedRows: this.changes || 0,
-                        affectedRows: this.changes || 0,
-                        insertId: this.lastID || 0,
-                        length: 0
-                    },
-                    query
-                ]);
-            });
-        });
-    }
-
-    /**
-     * Returns a database connection to the underlying SQLite database
-     *
-     * @protected
-     */
-    protected async connection (): Promise<SQLiteDatabase> {
+    private async getInstance (): Promise<SQLiteInstance> {
         if (this.database) {
             return this.database;
         }
 
-        this.database = await getConnection(this.config.filename, this.config.mode);
+        this.database = await SQLiteInstanceManager.get(
+            this.config.filename, this.config.mode, this.config.queueScanInterval);
 
         this.database.on('error', error => this.emit('error', error));
         this.database.on('trace', sql => this.emit('trace', sql));
@@ -511,11 +216,11 @@ export default class SQLite extends Database {
         this.database.on('close', () => this.emit('close'));
 
         if (this.config.WALmode) {
-            await this.setPragma('journal_mode', 'WAL');
+            await this.database.setPragma('journal_mode', 'WAL');
         }
 
         if (this.config.foreignKeys) {
-            await this.setPragma('foreign_keys', true);
+            await this.database.setPragma('foreign_keys', true);
         }
 
         return this.database;
