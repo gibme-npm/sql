@@ -19,22 +19,13 @@
 // SOFTWARE.
 
 import sqlite3 from 'sqlite3';
-import {
-    Column,
-    DatabaseType,
-    ForeignKey,
-    ForeignKeyConstraint,
-    Query,
-    QueryMetaData,
-    QueryResult
-} from './types';
-import { escape, escapeId } from 'mysql';
+import { Column, DatabaseType, ForeignKey, ForeignKeyConstraint, Query, QueryMetaData, QueryResult } from './types';
 import { resolve } from 'path';
 import { DatabaseOpenMode, getConnection, OpenMode, SQLiteDatabase } from './sqlite_instance';
 import Database from './database';
 
 export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData };
-export { escape, escapeId, OpenMode, DatabaseOpenMode };
+export { OpenMode, DatabaseOpenMode };
 
 /** @ignore */
 const pragmaFunctionCalls = [
@@ -77,13 +68,10 @@ enum QueueEntryType {
 /** @ignore */
 interface QueueEntry<Type = any> extends Callback<Type> {
     type: QueueEntryType;
-    query?: string;
-    values?: any[];
-    queries?: Query[];
+    queries: Query[];
 }
 
 export default class SQLite extends Database {
-    public tableOptions = '';
     public readonly config: DatabaseConfig = {
         filename: ':memory:',
         mode: DatabaseOpenMode.READWRITE | DatabaseOpenMode.CREATE,
@@ -105,7 +93,7 @@ export default class SQLite extends Database {
     constructor (
         config: Partial<DatabaseConfig> = {}
     ) {
-        super();
+        super(DatabaseType.SQLITE);
 
         this.config.filename = config.filename || ':memory:';
         this.config.mode = config.mode || DatabaseOpenMode.READWRITE |
@@ -138,10 +126,6 @@ export default class SQLite extends Database {
                     try {
                         switch (entry.type) {
                             case QueueEntryType.TRANSACTION: {
-                                if (!entry.queries) {
-                                    break;
-                                }
-
                                 const results = await this._transaction(entry.queries);
 
                                 entry.callback(undefined, results);
@@ -149,27 +133,22 @@ export default class SQLite extends Database {
                                 break;
                             }
                             case QueueEntryType.ALL: {
-                                if (!entry.query || !entry.values) {
-                                    break;
-                                }
-
-                                const result = await this.all(entry.query, entry.values);
+                                const result = await this.all(entry.queries[0]);
 
                                 entry.callback(undefined, [result]);
 
                                 break;
                             }
                             case QueueEntryType.RUN: {
-                                if (!entry.query || !entry.values) {
-                                    break;
-                                }
-
-                                const result = await this.run(entry.query, entry.values);
+                                const result = await this.run(entry.queries[0]);
 
                                 entry.callback(undefined, [result]);
 
                                 break;
                             }
+                            default:
+                                entry.callback(new Error('Unknown query entry type'), []);
+                                break;
                         }
                     } catch (error: any) {
                         entry.callback(error);
@@ -179,6 +158,10 @@ export default class SQLite extends Database {
                 await sleep(this.config.queueScanInterval);
             }
         })();
+    }
+
+    public static get type (): DatabaseType {
+        return DatabaseType.SQLITE;
     }
 
     /**
@@ -194,46 +177,6 @@ export default class SQLite extends Database {
      */
     public static verbose () {
         return sqlite3.verbose();
-    }
-
-    public static get type (): string {
-        return 'SQLite';
-    }
-
-    /**
-     * Escapes the ID value
-     *
-     * @param id
-     */
-    public static escapeId (id: string): string {
-        return escapeId(id);
-    }
-
-    /**
-     * Escapes the value
-     *
-     * @param value
-     */
-    public static escape (value: string): string {
-        return escape(value);
-    }
-
-    /**
-     * Escapes the ID value
-     *
-     * @param id
-     */
-    public escapeId (id: string): string {
-        return SQLite.escapeId(id);
-    }
-
-    /**
-     * Escapes the value
-     *
-     * @param value
-     */
-    public escape (value: string): string {
-        return SQLite.escape(value);
     }
 
     public on(event: 'error', listener: (error: Error) => void): this;
@@ -284,34 +227,6 @@ export default class SQLite extends Database {
     }
 
     /**
-     * Prepares and executes the creation of a table including the relevant indexes and
-     * constraints (are not supported)
-     *
-     * @param name
-     * @param fields
-     * @param primaryKey
-     * @param tableOptions
-     * @param useTransaction
-     */
-    public async createTable (
-        name: string,
-        fields: Column[],
-        primaryKey: string[],
-        tableOptions = this.tableOptions,
-        useTransaction = true
-    ): Promise<void> {
-        const queries = this.prepareCreateTable(name, fields, primaryKey, tableOptions);
-
-        if (useTransaction) {
-            await this.transaction(queries);
-        } else {
-            for (const query of queries) {
-                await this.query(query);
-            }
-        }
-    }
-
-    /**
      * Creates a new instance connected to the specified database using
      * the same configuration options
      *
@@ -335,7 +250,9 @@ export default class SQLite extends Database {
          * Execute this call via the low-level calling system outside the normal
          * queuing provided so that we do not mistakenly block the connection
          */
-        const [rows] = await this.all<{ [key: string]: unknown }>(`PRAGMA ${option}`);
+        const [rows] = await this.all<{ [key: string]: unknown }>({
+            query: `PRAGMA ${option}`
+        });
 
         if (rows.length === 1) {
             return rows[0][option];
@@ -364,7 +281,7 @@ export default class SQLite extends Database {
          * Execute this call via the low-level calling system outside the normal
          * queuing provided so that we do not mistakenly block the connection
          */
-        await this.run(`PRAGMA ${option}${value}`);
+        await this.run({ query: `PRAGMA ${option}${value}` });
     }
 
     /**
@@ -382,27 +299,6 @@ export default class SQLite extends Database {
         );
 
         return rows.map(row => row.name);
-    }
-
-    /**
-     * Drop the tables from the database
-     *
-     * @param tables
-     */
-    public async dropTable (tables: string | string[]): Promise<QueryResult[]> {
-        if (!Array.isArray(tables)) {
-            tables = [tables];
-        }
-
-        const queries: Query[] = [];
-
-        for (const table of tables) {
-            queries.push({
-                query: `DROP TABLE IF EXISTS ${escapeId(table)}`
-            });
-        }
-
-        return this.transaction(queries);
     }
 
     /**
@@ -426,8 +322,10 @@ export default class SQLite extends Database {
 
             if (query.toLowerCase().startsWith('select')) {
                 this._statementQueue.push({
-                    query,
-                    values,
+                    queries: [{
+                        query,
+                        values
+                    }],
                     type: QueueEntryType.ALL,
                     callback: (error: Error | undefined, results) => {
                         if (error) {
@@ -443,8 +341,10 @@ export default class SQLite extends Database {
                 });
             } else {
                 this._statementQueue.push({
-                    query,
-                    values,
+                    queries: [{
+                        query,
+                        values
+                    }],
                     type: QueueEntryType.RUN,
                     callback: (error: Error | undefined, results) => {
                         if (error) {
@@ -460,129 +360,6 @@ export default class SQLite extends Database {
                 });
             }
         });
-    }
-
-    /**
-     * Prepares and performs a query that performs a multi-insert statement
-     * which is far faster than a bunch of individual insert statements
-     *
-     * @param table
-     * @param columns
-     * @param values
-     * @param useTransaction
-     */
-    public async multiInsert (
-        table: string,
-        columns: string[] = [],
-        values: any[][],
-        useTransaction = true
-    ): Promise<QueryResult> {
-        const queries = this.prepareMultiInsert(table, columns, values);
-
-        if (useTransaction) {
-            const results = await this.transaction(queries);
-
-            return [
-                [],
-                {
-                    affectedRows: results.map(result => result[1].affectedRows)
-                        .reduce((previous, current) => previous + current),
-                    changedRows: results.map(result => result[1].changedRows)
-                        .reduce((previous, current) => previous + current),
-                    length: results.map(result => result[1].length)
-                        .reduce((previous, current) => previous + current)
-                },
-                {
-                    query: queries.map(query => query.query).join(';')
-                }
-            ];
-        } else {
-            let affectedRows = 0;
-            let changedRows = 0;
-            let length = 0;
-
-            for (const query of queries) {
-                const [, meta] = await this.query(query);
-
-                affectedRows += meta.affectedRows;
-                changedRows += meta.changedRows;
-                length += meta.length;
-            }
-
-            return [
-                [],
-                {
-                    affectedRows,
-                    changedRows,
-                    length
-                }, {
-                    query: queries.map(query => query.query).join(';')
-                }
-            ];
-        }
-    }
-
-    /**
-     * Prepares and executes a query to that performs  a multi-update statement
-     * which is based upon a multi-insert statement that performs an UPSERT
-     * which is a lot faster than a bunch of update statements
-     *
-     * @param table
-     * @param primaryKey
-     * @param columns
-     * @param values
-     * @param useTransaction
-     */
-    public async multiUpdate (
-        table: string,
-        primaryKey: string[],
-        columns: string[],
-        values: any[][],
-        useTransaction = true
-    ): Promise<QueryResult> {
-        const queries = this.prepareMultiUpdate(table, primaryKey, columns, values);
-
-        if (useTransaction) {
-            const results = await this.transaction(queries);
-
-            return [
-                [],
-                {
-                    affectedRows: results.map(result => result[1].affectedRows)
-                        .reduce((previous, current) => previous + current),
-                    changedRows: results.map(result => result[1].changedRows)
-                        .reduce((previous, current) => previous + current),
-                    length: results.map(result => result[1].length)
-                        .reduce((previous, current) => previous + current)
-                },
-                {
-                    query: queries.map(query => query.query).join(';')
-                }
-            ];
-        } else {
-            let affectedRows = 0;
-            let changedRows = 0;
-            let length = 0;
-
-            for (const query of queries) {
-                const [, meta] = await this.query(query);
-
-                affectedRows += meta.affectedRows;
-                changedRows += meta.changedRows;
-                length += meta.length;
-            }
-
-            return [
-                [],
-                {
-                    affectedRows,
-                    changedRows,
-                    length
-                }, {
-                    query: queries.map(query => query.query).join(';')
-                }
-            ];
-        }
     }
 
     /**
@@ -613,58 +390,6 @@ export default class SQLite extends Database {
     }
 
     /**
-     * Prepares a query to perform a multi-insert statement which is far
-     * faster than a bunch of individual insert statements
-     *
-     * @param table
-     * @param columns
-     * @param values
-     */
-    public prepareMultiInsert (
-        table: string,
-        columns: string[] = [],
-        values: any[][]
-    ): Query[] {
-        return this._prepareMultiInsert(DatabaseType.SQLITE, table, columns, values, escapeId);
-    }
-
-    /**
-     * Prepares a query to perform a multi-update statement which is
-     * based upon a multi-insert statement that performs an UPSERT
-     * and this is a lot faster than a bunch of individual
-     * update statements
-     *
-     * @param table
-     * @param primaryKey
-     * @param columns
-     * @param values
-     */
-    public prepareMultiUpdate (
-        table: string,
-        primaryKey: string[],
-        columns: string[],
-        values: any[][]
-    ): Query[] {
-        return this._prepareMultiUpdate(DatabaseType.SQLITE, table, primaryKey, columns, values, escapeId);
-    }
-
-    /**
-     * Prepares the creation of a table including the relevant indexes and constraints
-     * @param name
-     * @param fields
-     * @param primaryKey
-     * @param tableOptions
-     */
-    public prepareCreateTable (
-        name: string,
-        fields: Column[],
-        primaryKey: string[],
-        tableOptions = this.tableOptions
-    ): Query[] {
-        return this._prepareCreateTable(name, fields, primaryKey, tableOptions, escapeId);
-    }
-
-    /**
      * Executes a low-level transaction call against the SQLite database connection
      *
      * @param queries
@@ -682,9 +407,9 @@ export default class SQLite extends Database {
 
             for (const query of queries) {
                 if (query.query.toLowerCase().startsWith('select')) {
-                    results.push(await this.all(query.query, query.values, connection));
+                    results.push(await this.all(query, connection));
                 } else {
-                    results.push(await this.run(query.query, query.values, connection));
+                    results.push(await this.run(query, connection));
                 }
             }
 
@@ -707,14 +432,13 @@ export default class SQLite extends Database {
      * @protected
      */
     protected async all<RecordType = any> (
-        query: string,
-        values: any[] = [],
+        query: Query,
         connection?: SQLiteDatabase
     ): Promise<QueryResult<RecordType>> {
         connection ||= await this.connection();
 
         return new Promise((resolve, reject) => {
-            connection?.all(query, values, function (error: Error | null, rows: any[]) {
+            connection?.all(query.query, query.values, function (error: Error | null, rows: any[]) {
                 if (error) {
                     return reject(error);
                 }
@@ -726,10 +450,7 @@ export default class SQLite extends Database {
                         affectedRows: 0,
                         length: rows.length
                     },
-                    {
-                        query: query as string,
-                        values
-                    }
+                    query
                 ]);
             });
         });
@@ -739,19 +460,17 @@ export default class SQLite extends Database {
      * Executes a low-level run call against the SQLite database connection
      *
      * @param query
-     * @param values
      * @param connection
      * @protected
      */
     protected async run<RecordType = any> (
-        query: string,
-        values: any[] = [],
+        query: Query,
         connection?: SQLiteDatabase
     ): Promise<QueryResult<RecordType>> {
         connection ||= await this.connection();
 
         return new Promise((resolve, reject) => {
-            connection?.run(query, values, function (error: Error | null) {
+            connection?.run(query.query, query.values, function (error: Error | null) {
                 if (error) {
                     return reject(error);
                 }
@@ -764,10 +483,7 @@ export default class SQLite extends Database {
                         insertId: this.lastID || 0,
                         length: 0
                     },
-                    {
-                        query: query as string,
-                        values
-                    }
+                    query
                 ]);
             });
         });

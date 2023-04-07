@@ -38,8 +38,7 @@ export const test_table = digest(process.env.SQL_TABLE || 'test');
 const second_table = digest(test_table);
 
 export const runTests = (
-    db: Database,
-    escapeId: (id: string) => string
+    db: Database
 ): void => {
     const values: any[][] = [];
 
@@ -121,7 +120,7 @@ export const runTests = (
     describe('Queries', () => {
         it('Select', async () => {
             const [rows] = await db.query<{ column1: string, column2: number }>(
-                `SELECT * FROM ${escapeId(test_table)} WHERE ${escapeId('column1')} = ?`,
+                `SELECT * FROM ${db.escapeId(test_table)} WHERE ${db.escapeId('column1')} = ?`,
                 [values[0][0]]
             );
 
@@ -130,7 +129,7 @@ export const runTests = (
 
         it('Delete', async () => {
             const [, meta] = await db.query(
-                `DELETE FROM ${escapeId(test_table)} WHERE ${escapeId('column1')} = ?`,
+                `DELETE FROM ${db.escapeId(test_table)} WHERE ${db.escapeId('column1')} = ?`,
                 [values[0][0]]
             );
 
@@ -139,13 +138,13 @@ export const runTests = (
 
         it('Update', async () => {
             await db.query(
-                `UPDATE ${escapeId(test_table)} SET ${escapeId('column2')} = ? ` +
-                `WHERE ${escapeId('column1')} = ?`,
+                `UPDATE ${db.escapeId(test_table)} SET ${db.escapeId('column2')} = ? ` +
+                `WHERE ${db.escapeId('column1')} = ?`,
                 [5, values[1][0]]
             );
 
             const [rows] = await db.query<{ column1: string, column2: number }>(
-                `SELECT * FROM ${escapeId(test_table)} WHERE ${escapeId('column1')} = ?`,
+                `SELECT * FROM ${db.escapeId(test_table)} WHERE ${db.escapeId('column1')} = ?`,
                 [values[1][0]]
             );
 

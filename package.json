@@ -1,6 +1,6 @@
 {
   "name": "@gibme/sql",
-  "version": "1.0.8",
+  "version": "2.0.0",
   "description": "A simple helper/wrapper for common DBMS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,6 +9,7 @@
     "./mysql": "./dist/mysql.js",
     "./postgres": "./dist/postgres.js",
     "./sqlite": "./dist/sqlite.js",
+    "./libsql": "./dist/libsql.js",
     "./types": "./dist/types.js"
   },
   "typesVersions": {
@@ -21,6 +22,9 @@
       ],
       "sqlite": [
         "./dist/sqlite.d.ts"
+      ],
+      "libsql": [
+        "./dist/libsql.d.ts"
       ],
       "types": [
         "./dist/types.d.ts"
@@ -60,6 +64,7 @@
     "email": "brandonlehmann@gmail.com"
   },
   "dependencies": {
+    "@libsql/client": "^0.1.1",
     "@types/mysql": "^2.15.21",
     "@types/pg": "^8.6.6",
     "@types/pg-format": "^1.0.2",

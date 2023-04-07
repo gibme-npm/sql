@@ -21,11 +21,15 @@
 import { EventEmitter } from 'events';
 import { Column, DatabaseType, Query, QueryResult } from './types';
 import { format } from 'util';
+import pgformat from 'pg-format';
+import { escape as mysqlEscape, escapeId as mysqlEscapeId } from 'mysql';
 
 /**
  * The core interface for all database types
  */
 export interface IDatabase {
+    type: DatabaseType;
+    typeName: string;
     escape: (value: string) => string;
     escapeId: (id: string) => string;
     tableOptions: string;
@@ -79,70 +83,211 @@ export interface IDatabase {
 }
 
 export default abstract class Database extends EventEmitter implements IDatabase {
+    protected constructor (
+        public readonly type: DatabaseType,
+        public tableOptions = ''
+    ) {
+        super();
+    }
+
+    public get typeName (): string {
+        switch (this.type) {
+            case DatabaseType.LIBSQL:
+                return 'LibSQL';
+            case DatabaseType.MYSQL:
+                return 'MySQL';
+            case DatabaseType.POSTGRES:
+                return 'Postgres';
+            case DatabaseType.SQLITE:
+                return 'SQLite';
+        }
+    }
+
     abstract close(): Promise<void>;
 
-    abstract createTable(
-        name: string,
-        fields: Column[],
-        primaryKey: string[],
-        tableOptions?: string,
-        useTransaction?: boolean
-    ): Promise<void>;
+    /**
+     * Drop the tables from the database
+     *
+     * @param tables
+     */
+    public async dropTable (tables: string | string[]): Promise<QueryResult[]> {
+        if (!Array.isArray(tables)) {
+            tables = [tables];
+        }
 
-    abstract dropTable(tables: string | string[]): Promise<QueryResult[]>;
+        const queries: Query[] = [];
 
-    abstract escape(value: string): string;
+        for (const table of tables) {
+            queries.push({
+                query: `DROP TABLE IF EXISTS ${this.escapeId(table)}`
+            });
+        }
 
-    abstract escapeId(id: string): string;
+        return this.transaction(queries);
+    }
+
+    /**
+     * Escapes the value for SQL
+     *
+     * @param value
+     */
+    public escape (value: string): string {
+        console.log(this.type);
+
+        if (this.type === DatabaseType.POSTGRES) {
+            return pgformat('%L', value);
+        }
+
+        return mysqlEscape(value);
+    }
+
+    /**
+     * Escapes the ID for sql
+     *
+     * @param id
+     */
+    public escapeId (id: string): string {
+        if (this.type === DatabaseType.POSTGRES) {
+            return pgformat('%I', id);
+        }
+
+        return mysqlEscapeId(id);
+    }
 
     abstract listTables(database?: string): Promise<string[]>;
 
-    abstract multiInsert(
-        table: string,
-        columns: string[],
-        values: any[][],
-        useTransaction?: boolean
-    ): Promise<QueryResult>;
-
-    abstract multiUpdate(
-        table: string,
-        primaryKey: string[],
-        columns: string[],
-        values: any[][],
-        useTransaction?: boolean
-    ): Promise<QueryResult>;
-
-    abstract prepareCreateTable(
-        name: string,
-        fields: Column[],
-        primaryKey: string[],
-        tableOptions?: string
-    ): Query[];
-
-    abstract prepareMultiInsert(
-        table: string,
-        columns: string[],
-        values: any[][]
-    ): Query[];
-
-    abstract prepareMultiUpdate(
-        table: string,
-        primaryKey: string[],
-        columns: string[],
-        values: any[][]
-    ): Query[];
-
     abstract query<RecordType>(
         query: string | Query,
-        values: any[],
+        values?: any[],
         connection?: any
     ): Promise<QueryResult<RecordType>>;
-
-    abstract tableOptions: string;
 
     abstract transaction(queries: Query[]): Promise<QueryResult[]>;
 
     abstract use(database: string): Promise<IDatabase>;
+
+    /**
+     * Prepares a query to perform a multi-insert statement which is far
+     * faster than a bunch of individual insert statements
+     *
+     * @param table
+     * @param columns
+     * @param values
+     */
+    public prepareMultiInsert (
+        table: string,
+        columns: string[] = [],
+        values: any[][]
+    ): Query[] {
+        return this._prepareMultiInsert(this.type, table, columns, values);
+    }
+
+    /**
+     * Prepares a query to perform a multi-update statement which is
+     * based upon a multi-insert statement that performs an UPSERT
+     * and this is a lot faster than a bunch of individual
+     * update statements
+     *
+     * @param table
+     * @param primaryKey
+     * @param columns
+     * @param values
+     */
+    public prepareMultiUpdate (
+        table: string,
+        primaryKey: string[],
+        columns: string[],
+        values: any[][]
+    ): Query[] {
+        return this._prepareMultiUpdate(this.type, table, primaryKey, columns, values);
+    }
+
+    /**
+     * Prepares the creation of a table including the relevant indexes and constraints
+     * @param name
+     * @param fields
+     * @param primaryKey
+     * @param tableOptions
+     */
+    public prepareCreateTable (
+        name: string,
+        fields: Column[],
+        primaryKey: string[],
+        tableOptions = this.tableOptions
+    ): Query[] {
+        return this._prepareCreateTable(name, fields, primaryKey, tableOptions);
+    }
+
+    /**
+     * Prepares and executes the creation of a table including the relevant indexes and
+     * constraints (are not supported)
+     *
+     * @param name
+     * @param fields
+     * @param primaryKey
+     * @param tableOptions
+     * @param useTransaction
+     */
+    public async createTable (
+        name: string,
+        fields: Column[],
+        primaryKey: string[],
+        tableOptions = this.tableOptions,
+        useTransaction = true
+    ): Promise<void> {
+        const queries = this.prepareCreateTable(name, fields, primaryKey, tableOptions);
+
+        if (useTransaction) {
+            await this.transaction(queries);
+        } else {
+            for (const query of queries) {
+                await this.query(query);
+            }
+        }
+    }
+
+    /**
+     * Prepares and performs a query that performs a multi-insert statement
+     * which is far faster than a bunch of individual insert statements
+     *
+     * @param table
+     * @param columns
+     * @param values
+     * @param useTransaction
+     */
+    public async multiInsert (
+        table: string,
+        columns: string[] = [],
+        values: any[][],
+        useTransaction = true
+    ): Promise<QueryResult> {
+        const queries = this.prepareMultiInsert(table, columns, values);
+
+        return this._executeMulti(queries, useTransaction);
+    }
+
+    /**
+     * Prepares and executes a query to that performs  a multi-update statement
+     * which is based upon a multi-insert statement that performs an UPSERT
+     * which is a lot faster than a bunch of update statements
+     *
+     * @param table
+     * @param primaryKey
+     * @param columns
+     * @param values
+     * @param useTransaction
+     */
+    public async multiUpdate (
+        table: string,
+        primaryKey: string[],
+        columns: string[],
+        values: any[][],
+        useTransaction = true
+    ): Promise<QueryResult> {
+        const queries = this.prepareMultiUpdate(table, primaryKey, columns, values);
+
+        return this._executeMulti(queries, useTransaction);
+    }
 
     /**
      * Prepares the creation of a table including the relevant indexes and constraints
@@ -151,17 +296,15 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @param fields
      * @param primaryKey
      * @param tableOptions
-     * @param escapeId
      */
     protected _prepareCreateTable (
         name: string,
         fields: Column[],
         primaryKey: string[],
-        tableOptions: string,
-        escapeId: (value: string) => string
+        tableOptions: string
     ): Query[] {
-        name = escapeId(name);
-        primaryKey = primaryKey.map(column => escapeId(column));
+        name = this.escapeId(name);
+        primaryKey = primaryKey.map(column => this.escapeId(column));
 
         const sqlToQuery = (sql: string, values: any[] = []): Query => {
             return {
@@ -178,7 +321,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
             }
 
             return format('%s %s %s %s',
-                escapeId(column.name),
+                this.escapeId(column.name),
                 column.type.toUpperCase(),
                 !column.nullable ? 'NOT NULL' : 'NULL',
                 typeof column.default !== 'undefined' ? 'DEFAULT ?' : '')
@@ -188,9 +331,9 @@ export default abstract class Database extends EventEmitter implements IDatabase
         const _unique = fields.filter(elem => elem.unique === true)
             .map(column => format('CREATE UNIQUE INDEX IF NOT EXISTS %s_unique_%s ON %s (%s)',
                 name,
-                escapeId(column.name),
+                this.escapeId(column.name),
                 name,
-                escapeId(column.name.trim())));
+                this.escapeId(column.name.trim())));
 
         const constraint_fmt = ', CONSTRAINT %s_%s_foreign_key FOREIGN KEY (%s) REFERENCES %s (%s)';
 
@@ -200,8 +343,8 @@ export default abstract class Database extends EventEmitter implements IDatabase
             if (field.foreignKey) {
                 let constraint = format(constraint_fmt,
                     name,
-                    escapeId(field.name),
-                    escapeId(field.name),
+                    this.escapeId(field.name),
+                    this.escapeId(field.name),
                     field.foreignKey.table,
                     field.foreignKey.column);
 
@@ -235,14 +378,12 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @param table
      * @param columns
      * @param values
-     * @param escapeId
      */
     protected _prepareMultiInsert (
         databaseType: DatabaseType,
         table: string,
         columns: string[] = [],
-        values: any[][],
-        escapeId: (value: string) => string
+        values: any[][]
     ): Query[] {
         const toPlaceholders = (arr: any[]): string => {
             return arr.map(() => '?')
@@ -261,15 +402,15 @@ export default abstract class Database extends EventEmitter implements IDatabase
             }
         }
 
-        const _columns = columns.length !== 0 ? ` (${columns.map(elem => escapeId(elem)).join(',')})` : '';
+        const _columns = columns.length !== 0 ? ` (${columns.map(elem => this.escapeId(elem)).join(',')})` : '';
 
         // SQLite handles things a bit differently
-        if (databaseType === DatabaseType.SQLITE) {
+        if (databaseType === DatabaseType.SQLITE || databaseType === DatabaseType.LIBSQL) {
             const queries: Query[] = [];
 
             for (const _values of values) {
                 queries.push({
-                    query: `INSERT INTO ${escapeId(table)}${_columns} VALUES (${toPlaceholders(_values)})`,
+                    query: `INSERT INTO ${this.escapeId(table)}${_columns} VALUES (${toPlaceholders(_values)})`,
                     values: _values
                 });
             }
@@ -288,7 +429,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
         }
 
         return [{
-            query: `INSERT INTO ${escapeId(table)}${_columns} VALUES ${placeholders.join(',')}`.trim(),
+            query: `INSERT INTO ${this.escapeId(table)}${_columns} VALUES ${placeholders.join(',')}`.trim(),
             values: parameters
         }];
     }
@@ -303,15 +444,13 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @param primaryKey
      * @param columns
      * @param values
-     * @param escapeId
      */
     protected _prepareMultiUpdate (
         databaseType: DatabaseType,
         table: string,
         primaryKey: string[],
         columns: string[],
-        values: any[][],
-        escapeId: (value: string) => string
+        values: any[][]
     ): Query[] {
         if (columns.length === 0) {
             throw new Error('Must specify columns for multi-update');
@@ -321,7 +460,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
             throw new Error('Must specify primary key column(s) for multi-update');
         }
 
-        const queries = this._prepareMultiInsert(databaseType, table, columns, values, escapeId);
+        const queries = this._prepareMultiInsert(databaseType, table, columns, values);
 
         const updates: string[] = [];
 
@@ -331,7 +470,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
                     continue;
                 }
 
-                updates.push(`${escapeId(column)} = VALUES(${escapeId(column)})`);
+                updates.push(`${this.escapeId(column)} = VALUES(${this.escapeId(column)})`);
             }
 
             return queries.map(query => {
@@ -346,14 +485,61 @@ export default abstract class Database extends EventEmitter implements IDatabase
                 continue;
             }
 
-            updates.push(`${escapeId(column)} = excluded.${escapeId(column)}`);
+            updates.push(`${this.escapeId(column)} = excluded.${this.escapeId(column)}`);
         }
 
         return queries.map(query => {
-            query.query += ` ON CONFLICT (${primaryKey.map(elem => escapeId(elem)).join(',')}) ` +
-        `DO UPDATE SET ${updates.join(',')}`;
+            query.query += ` ON CONFLICT (${primaryKey.map(elem => this.escapeId(elem)).join(',')}) ` +
+                `DO UPDATE SET ${updates.join(',')}`;
 
             return query;
         });
+    }
+
+    protected async _executeMulti (
+        queries: Query[],
+        useTransaction: boolean
+    ): Promise<QueryResult> {
+        if (useTransaction) {
+            const results = await this.transaction(queries);
+
+            return [
+                [],
+                {
+                    affectedRows: results.map(result => result[1].affectedRows)
+                        .reduce((previous, current) => previous + current),
+                    changedRows: results.map(result => result[1].changedRows)
+                        .reduce((previous, current) => previous + current),
+                    length: results.map(result => result[1].length)
+                        .reduce((previous, current) => previous + current)
+                },
+                {
+                    query: queries.map(query => query.query).join(';')
+                }
+            ];
+        } else {
+            let affectedRows = 0;
+            let changedRows = 0;
+            let length = 0;
+
+            for (const query of queries) {
+                const [, meta] = await this.query(query);
+
+                affectedRows += meta.affectedRows;
+                changedRows += meta.changedRows;
+                length += meta.length;
+            }
+
+            return [
+                [],
+                {
+                    affectedRows,
+                    changedRows,
+                    length
+                }, {
+                    query: queries.map(query => query.query).join(';')
+                }
+            ];
+        }
     }
 }

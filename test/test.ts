@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { describe, after } from 'mocha';
-import { Postgres, MySQL, SQLite, PostgresPoolConfig, MySQLPoolConfig, SQLiteConfig } from '../src';
+import { after, describe } from 'mocha';
+import { Database, DatabaseType, LibSQL, MySQL, Postgres, SQLite } from '../src';
 import { runTests, test_table } from './common';
 import { config } from 'dotenv';
 import { resolve } from 'path';
@@ -29,36 +29,28 @@ const test_db = resolve(`${process.cwd()}/${test_table}.sqlite3`);
 
 config();
 
-const engines = [SQLite, MySQL, Postgres];
+const engines: Database[] = [
+    new SQLite({ filename: test_db }),
+    new LibSQL({ url: `file:${test_db}` }),
+    new MySQL({
+        host: process.env.MYSQL_HOST,
+        port: process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT) : undefined,
+        user: process.env.MYSQL_USER,
+        password: process.env.MYSQL_PASSWORD,
+        database: process.env.MYSQL_DATABASE,
+        connectTimeout: 30_000
+    }),
+    new Postgres({
+        host: process.env.PGSQL_HOST,
+        port: process.env.PGSQL_PORT ? parseInt(process.env.PGSQL_PORT) : undefined,
+        user: process.env.PGSQL_USER,
+        password: process.env.PGSQL_PASSWORD,
+        database: process.env.PGSQL_DATABASE
+    })
+];
 
-for (const Engine of engines) {
-    describe(Engine.type, async function () {
-        const config: any = (() => {
-            switch (Engine.type.toLowerCase()) {
-                case 'sqlite':
-                    return { filename: test_db } as SQLiteConfig;
-                case 'mysql':
-                    return {
-                        host: process.env.MYSQL_HOST,
-                        port: process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT) : undefined,
-                        user: process.env.MYSQL_USER,
-                        password: process.env.MYSQL_PASSWORD,
-                        database: process.env.MYSQL_DATABASE,
-                        connectTimeout: 30_000
-                    } as MySQLPoolConfig;
-                case 'postgres':
-                    return {
-                        host: process.env.PGSQL_HOST,
-                        port: process.env.PGSQL_PORT ? parseInt(process.env.PGSQL_PORT) : undefined,
-                        user: process.env.PGSQL_USER,
-                        password: process.env.PGSQL_PASSWORD,
-                        database: process.env.PGSQL_DATABASE
-                    } as PostgresPoolConfig;
-            }
-        })();
-
-        const storage = new Engine(config);
-
+for (const storage of engines) {
+    describe(storage.typeName, async function () {
         before(async () => {
             await storage.dropTable(test_table);
         });
@@ -68,7 +60,7 @@ for (const Engine of engines) {
 
             await storage.close();
 
-            if (Engine.type.toLowerCase() === 'sqlite') {
+            if (storage.type === DatabaseType.SQLITE) {
                 try {
                     await unlink(test_db);
                 } catch {}
@@ -76,7 +68,7 @@ for (const Engine of engines) {
         });
 
         describe('Unit Tests', () => {
-            runTests(storage, Engine.escapeId);
+            runTests(storage);
         });
     });
 }

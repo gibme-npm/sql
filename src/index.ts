@@ -21,6 +21,7 @@
 import Postgres, { PoolConfig as PostgresPoolConfig } from './postgres';
 import MySQL, { PoolConfig as MySQLPoolConfig } from './mysql';
 import SQLite, { DatabaseConfig as SQLiteConfig } from './sqlite';
+import LibSQL, { DatabaseConfig as LibSQLConfig, DBPath as LibSQLDBPath } from './libsql';
 import Database from './database';
 
 export * from './types';
@@ -29,7 +30,11 @@ export default {
     Postgres,
     MySQL,
     SQLite,
+    LibSQL,
     Database
 };
 
-export { Postgres, MySQL, SQLite, Database, PostgresPoolConfig, MySQLPoolConfig, SQLiteConfig };
+export {
+    Postgres, MySQL, SQLite, Database, PostgresPoolConfig,
+    MySQLPoolConfig, SQLiteConfig, LibSQL, LibSQLConfig, LibSQLDBPath
+};

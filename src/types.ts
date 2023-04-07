@@ -21,7 +21,8 @@
 export enum DatabaseType {
     MYSQL,
     POSTGRES,
-    SQLITE
+    SQLITE,
+    LIBSQL
 }
 
 export interface QueryMetaData {
