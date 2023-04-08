@@ -126,9 +126,22 @@ export default class MySQL extends Database {
      *
      * @param query
      * @param values
-     * @param connection
      */
     public async query<RecordType = any> (
+        query: string | Query,
+        ...values: any[]
+    ): Promise<QueryResult<RecordType>> {
+        return this._query(query, values);
+    }
+
+    /**
+     * Performs an individual query and returns the result
+     *
+     * @param query
+     * @param values
+     * @param connection
+     */
+    private async _query<RecordType = any> (
         query: string | Query,
         values: any[] = [],
         connection: Pool | PoolConnection = this.pool
@@ -176,7 +189,7 @@ export default class MySQL extends Database {
             const results: QueryResult<RecordType>[] = [];
 
             for (const query of queries) {
-                results.push(await this.query(query.query, query.values, connection));
+                results.push(await this._query(query.query, query.values, connection));
             }
 
             await this.commitTransaction(connection);

@@ -46,8 +46,7 @@ export interface IDatabase {
     dropTable: (tables: string | string[]) => Promise<QueryResult[]>;
     query: <RecordType = any>(
         query: string | Query,
-        values: any[],
-        connection?: any
+        ...values: any[]
     ) => Promise<QueryResult<RecordType>>;
     multiInsert: (
         table: string,
@@ -158,8 +157,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
 
     abstract query<RecordType>(
         query: string | Query,
-        values?: any[],
-        connection?: any
+        ...values: any[]
     ): Promise<QueryResult<RecordType>>;
 
     abstract transaction(queries: Query[]): Promise<QueryResult[]>;

@@ -173,11 +173,11 @@ export default class SQLite extends Database {
      */
     public async query<RecordType = any> (
         query: string | Query,
-        values: any[] = []
+        ...values: any[]
     ): Promise<QueryResult<RecordType>> {
         const instance = await this.getInstance();
 
-        return instance.query<RecordType>(query, values);
+        return instance.query<RecordType>(query, ...values);
     }
 
     /**

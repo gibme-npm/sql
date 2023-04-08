@@ -109,7 +109,7 @@ export default class LibSQL extends Database {
      */
     public async query<RecordType = any> (
         query: string | Query,
-        values: any[] = []
+        ...values: any[]
     ): Promise<QueryResult<RecordType>> {
         if (typeof query === 'object') {
             if (query.values) {

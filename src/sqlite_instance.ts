@@ -297,7 +297,7 @@ export default class SQLiteInstance extends EventEmitter {
      */
     public async query<RecordType = any> (
         query: string | Query,
-        values: any[] = []
+        ...values: any[]
     ): Promise<QueryResult<RecordType>> {
         return new Promise((resolve, reject) => {
             if (typeof query === 'object') {

@@ -121,7 +121,7 @@ export const runTests = (
         it('Select', async () => {
             const [rows] = await db.query<{ column1: string, column2: number }>(
                 `SELECT * FROM ${db.escapeId(test_table)} WHERE ${db.escapeId('column1')} = ?`,
-                [values[0][0]]
+                values[0][0]
             );
 
             assert.equal(rows[0].column2, 1, 'Column2 value incorrect');
@@ -130,7 +130,7 @@ export const runTests = (
         it('Delete', async () => {
             const [, meta] = await db.query(
                 `DELETE FROM ${db.escapeId(test_table)} WHERE ${db.escapeId('column1')} = ?`,
-                [values[0][0]]
+                values[0][0]
             );
 
             assert.equal(meta.affectedRows, 1, 'Affected rows value incorrect');
@@ -140,12 +140,12 @@ export const runTests = (
             await db.query(
                 `UPDATE ${db.escapeId(test_table)} SET ${db.escapeId('column2')} = ? ` +
                 `WHERE ${db.escapeId('column1')} = ?`,
-                [5, values[1][0]]
+                5, values[1][0]
             );
 
             const [rows] = await db.query<{ column1: string, column2: number }>(
                 `SELECT * FROM ${db.escapeId(test_table)} WHERE ${db.escapeId('column1')} = ?`,
-                [values[1][0]]
+                values[1][0]
             );
 
             assert.equal(rows[0].column2, 5, 'Column2 value incorrect');
