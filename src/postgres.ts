@@ -20,10 +20,10 @@
 
 import { Column, DatabaseType, ForeignKey, ForeignKeyConstraint, Query, QueryMetaData, QueryResult } from './types';
 import { Pool, PoolClient, PoolConfig } from 'pg';
-import Database from './database';
+import Database, { IDatabase } from './database';
 
 export { PoolConfig };
-export { QueryMetaData, Query, QueryResult, ForeignKey, ForeignKeyConstraint, Column };
+export { QueryMetaData, Query, QueryResult, ForeignKey, ForeignKeyConstraint, Column, IDatabase };
 
 export default class Postgres extends Database {
     public readonly pool: Pool;
@@ -130,44 +130,6 @@ export default class Postgres extends Database {
     }
 
     /**
-     * Performs an individual query and returns the results
-     *
-     * @param query
-     * @param values
-     * @param connection
-     */
-    private async _query<RecordType = any> (
-        query: string | Query,
-        values: any[] = [],
-        connection: Pool | PoolClient = this.pool
-    ): Promise<QueryResult<RecordType>> {
-        if (typeof query === 'object') {
-            if (query.values) {
-                values = query.values;
-            }
-
-            query = query.query;
-        }
-
-        query = this.transformQuery(query);
-
-        const result = await connection.query(query, values);
-
-        if (!(connection instanceof Pool)) {
-            await connection.release();
-        }
-
-        return [result.rows, {
-            changedRows: result.rows.length === 0 ? result.rowCount : 0,
-            affectedRows: result.rows.length === 0 ? result.rowCount : 0,
-            length: result.rows.length
-        }, {
-            query,
-            values
-        }];
-    }
-
-    /**
      * Performs the specified queries in a transaction
      *
      * @param queries
@@ -269,6 +231,44 @@ export default class Postgres extends Database {
                 throw new Error(error);
             }
         }
+    }
+
+    /**
+     * Performs an individual query and returns the results
+     *
+     * @param query
+     * @param values
+     * @param connection
+     */
+    private async _query<RecordType = any> (
+        query: string | Query,
+        values: any[] = [],
+        connection: Pool | PoolClient = this.pool
+    ): Promise<QueryResult<RecordType>> {
+        if (typeof query === 'object') {
+            if (query.values) {
+                values = query.values;
+            }
+
+            query = query.query;
+        }
+
+        query = this.transformQuery(query);
+
+        const result = await connection.query(query, values);
+
+        if (!(connection instanceof Pool)) {
+            connection.release();
+        }
+
+        return [result.rows, {
+            changedRows: result.rows.length === 0 ? result.rowCount : 0,
+            affectedRows: result.rows.length === 0 ? result.rowCount : 0,
+            length: result.rows.length
+        }, {
+            query,
+            values
+        }];
     }
 }
 

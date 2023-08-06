@@ -22,9 +22,9 @@ import sqlite3 from 'sqlite3';
 import { Column, DatabaseType, ForeignKey, ForeignKeyConstraint, Query, QueryMetaData, QueryResult } from './types';
 import { resolve } from 'path';
 import SQLiteInstanceManager, { DatabaseOpenMode, OpenMode, SQLiteInstance } from './sqlite_instance_manager';
-import Database from './database';
+import Database, { IDatabase } from './database';
 
-export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData };
+export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData, IDatabase };
 export { OpenMode, DatabaseOpenMode };
 
 export interface DatabaseConfig {
@@ -191,6 +191,48 @@ export default class SQLite extends Database {
         const instance = await this.getInstance();
 
         return instance.transaction<RecordType>(queries);
+    }
+
+    /**
+     * This does nothing as the underlying instance handles this internally
+     *
+     * @param _connection
+     * @protected
+     */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    protected beginTransaction (_connection: any): Promise<void> {
+        return Promise.resolve();
+    }
+
+    /**
+     * This does nothing as the underlying instance handles this internally
+     *
+     * @param _connection
+     * @protected
+     */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    protected commitTransaction (_connection: any): Promise<void> {
+        return Promise.resolve();
+    }
+
+    /**
+     * This does nothing as the underlying instance handles this internally
+     *
+     * @param _connection
+     * @protected
+     */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    protected rollbackTransaction (_connection: any): Promise<void> {
+        return Promise.resolve();
+    }
+
+    /**
+     * This is not required for this database type
+     *
+     * @protected
+     */
+    protected connection (): Promise<void> {
+        return Promise.resolve();
     }
 
     /**

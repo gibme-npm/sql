@@ -20,10 +20,10 @@
 
 import { createPool, Pool, PoolConfig, PoolConnection } from 'mysql';
 import { Column, DatabaseType, ForeignKey, ForeignKeyConstraint, Query, QueryMetaData, QueryResult } from './types';
-import Database from './database';
+import Database, { IDatabase } from './database';
 
 export { PoolConfig };
-export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData };
+export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData, IDatabase };
 
 export default class MySQL extends Database {
     public readonly pool: Pool;
@@ -135,45 +135,6 @@ export default class MySQL extends Database {
     }
 
     /**
-     * Performs an individual query and returns the result
-     *
-     * @param query
-     * @param values
-     * @param connection
-     */
-    private async _query<RecordType = any> (
-        query: string | Query,
-        values: any[] = [],
-        connection: Pool | PoolConnection = this.pool
-    ): Promise<QueryResult<RecordType>> {
-        return new Promise((resolve, reject) => {
-            if (typeof query === 'object') {
-                if (query.values) {
-                    values = query.values;
-                }
-
-                query = query.query;
-            }
-
-            connection.query(query, values, (error, results) => {
-                if (error) {
-                    return reject(error);
-                }
-
-                return resolve([results, {
-                    changedRows: results.changedRows || 0,
-                    affectedRows: results.affectedRows || 0,
-                    insertId: results.insertId || undefined,
-                    length: results.length || 0
-                }, {
-                    query: query as string,
-                    values
-                }]);
-            });
-        });
-    }
-
-    /**
      * Performs the specified queries in a transaction
      *
      * @param queries
@@ -271,6 +232,45 @@ export default class MySQL extends Database {
                 }
 
                 return resolve();
+            });
+        });
+    }
+
+    /**
+     * Performs an individual query and returns the result
+     *
+     * @param query
+     * @param values
+     * @param connection
+     */
+    private async _query<RecordType = any> (
+        query: string | Query,
+        values: any[] = [],
+        connection: Pool | PoolConnection = this.pool
+    ): Promise<QueryResult<RecordType>> {
+        return new Promise((resolve, reject) => {
+            if (typeof query === 'object') {
+                if (query.values) {
+                    values = query.values;
+                }
+
+                query = query.query;
+            }
+
+            connection.query(query, values, (error, results) => {
+                if (error) {
+                    return reject(error);
+                }
+
+                return resolve([results, {
+                    changedRows: results.changedRows || 0,
+                    affectedRows: results.affectedRows || 0,
+                    insertId: results.insertId || undefined,
+                    length: results.length || 0
+                }, {
+                    query: query as string,
+                    values
+                }]);
             });
         });
     }

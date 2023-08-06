@@ -18,12 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Client, Config, createClient, InStatement } from '@libsql/client';
+import { Client, Config, createClient, InStatement, Transaction } from '@libsql/client';
 import { Column, DatabaseType, ForeignKey, ForeignKeyConstraint, Query, QueryMetaData, QueryResult } from './types';
 import { resolve } from 'path';
-import Database from './database';
+import Database, { IDatabase } from './database';
 
-export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData };
+export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData, IDatabase };
 
 export type DBPath = `file:${string}` | `ws://${string}` | `wss://${string}` |
     `http://${string}` | `https://${string}` | `libsql://${string}`;
@@ -154,28 +154,28 @@ export default class LibSQL extends Database {
         const results: QueryResult<RecordType>[] = [];
 
         if (this.transactionsEnabled) {
-            const connection = await this.database.transaction();
+            const connection = await this.beginTransaction();
 
             try {
                 for (const query of queries) {
-                    const resultset = await connection.execute(this.toInStmt(query));
+                    const result_set = await connection.execute(this.toInStmt(query));
 
                     results.push([
-                        resultset.rows as any[],
+                        result_set.rows as any[],
                         {
-                            changedRows: resultset.rowsAffected,
-                            affectedRows: resultset.rowsAffected,
-                            length: resultset.rows.length
+                            changedRows: result_set.rowsAffected,
+                            affectedRows: result_set.rowsAffected,
+                            length: result_set.rows.length
                         },
                         query
                     ]);
                 }
 
-                await connection.commit();
+                await this.commitTransaction(connection);
 
                 return results;
             } catch (error: any) {
-                await connection.rollback();
+                await this.rollbackTransaction(connection);
 
                 throw error;
             }
@@ -200,6 +200,45 @@ export default class LibSQL extends Database {
         }
 
         return results;
+    }
+
+    /**
+     * Starts a new transaction
+     *
+     * @protected
+     */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    protected async beginTransaction (): Promise<Transaction> {
+        return this.database.transaction();
+    }
+
+    /**
+     * Commits the open transaction
+     *
+     * @param connection
+     * @protected
+     */
+    protected async commitTransaction (connection: Transaction): Promise<void> {
+        return connection.commit();
+    }
+
+    /**
+     * Rolls back the open transaction
+     *
+     * @param connection
+     * @protected
+     */
+    protected async rollbackTransaction (connection: Transaction): Promise<void> {
+        return connection.rollback();
+    }
+
+    /**
+     * This is not required for this database type
+     *
+     * @protected
+     */
+    protected connection (): Promise<void> {
+        return Promise.resolve();
     }
 
     /**

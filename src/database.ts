@@ -131,8 +131,6 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @param value
      */
     public escape (value: string): string {
-        console.log(this.type);
-
         if (this.type === DatabaseType.POSTGRES) {
             return pgformat('%L', value);
         }
@@ -160,7 +158,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
         ...values: any[]
     ): Promise<QueryResult<RecordType>>;
 
-    abstract transaction(queries: Query[]): Promise<QueryResult[]>;
+    abstract transaction<RecordType = any>(queries: Query[]): Promise<QueryResult<RecordType>[]>;
 
     abstract use(database: string): Promise<IDatabase>;
 
@@ -286,6 +284,14 @@ export default abstract class Database extends EventEmitter implements IDatabase
 
         return this._executeMulti(queries, useTransaction);
     }
+
+    protected abstract connection(): Promise<any>;
+
+    protected abstract beginTransaction(connection: any): Promise<any>;
+
+    protected abstract commitTransaction(connection: any): Promise<void>;
+
+    protected abstract rollbackTransaction(connection: any): Promise<void>;
 
     /**
      * Prepares the creation of a table including the relevant indexes and constraints
