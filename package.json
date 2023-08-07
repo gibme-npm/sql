@@ -1,6 +1,6 @@
 {
   "name": "@gibme/sql",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "A simple helper/wrapper for common DBMS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -39,7 +39,8 @@
     "build": "yarn build:typescript",
     "build:docs": "./node_modules/.bin/typedoc",
     "build:typescript": "./node_modules/.bin/tsc",
-    "test": "yarn test:style && yarn test:mocha",
+    "test": "yarn test:style && yarn test:typecheck && yarn test:mocha",
+    "test:typecheck": "./node_modules/.bin/tsc --noEmit",
     "test:style": "yarn style",
     "test:mocha": "./node_modules/.bin/mocha --exit --timeout 120000 --require ts-node/register test/test.ts",
     "style": "./node_modules/.bin/eslint src/**/*.ts test/**/*.ts",
