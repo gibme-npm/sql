@@ -88,24 +88,24 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
-"@libsql/client@^0.3.1":
-  version "0.3.6"
-  resolved "https://registry.yarnpkg.com/@libsql/client/-/client-0.3.6.tgz#2358959c3dff433cadae01b089fdc68ae4d6cf36"
-  integrity sha512-3Mc4ZDI7X5ZLkMxX5XijiBeqhvyrny356lcj/KVVIeMXt9j6g4l+CRIsUvgcsyCAOUHqWqh0+TjI91bCKmdW+w==
+"@libsql/client@^0.4.0-pre.1":
+  version "0.4.0-pre.1"
+  resolved "https://registry.yarnpkg.com/@libsql/client/-/client-0.4.0-pre.1.tgz#5de2e9b624227e8d33d0bd7ddf1bcfca997378c2"
+  integrity sha512-6VvMVl/tmmZG7lcGvTwQnmfHmUL0Bj6XZGOu2z3LcmV7Yx+g6Igla8S+OSUzj/2m9nezGaAtgtjOcZlQacQl/A==
   dependencies:
     "@libsql/hrana-client" "^0.5.5"
     js-base64 "^3.7.5"
-    libsql "^0.1.28"
+    libsql "^0.2.0-pre.1"
 
-"@libsql/darwin-arm64@0.1.34":
-  version "0.1.34"
-  resolved "https://registry.yarnpkg.com/@libsql/darwin-arm64/-/darwin-arm64-0.1.34.tgz#12579a1887f379dd9e9614d70385ea74ce45a94f"
-  integrity sha512-Wv8jvkj/fUAO8DF3A4HaddCMldUUpKcg/WW1sY95FNsSHOxktyxqU80jAp/tCuZ85GQIJozvgSr51/ARIC0gsw==
+"@libsql/darwin-arm64@0.2.0-pre.1":
+  version "0.2.0-pre.1"
+  resolved "https://registry.yarnpkg.com/@libsql/darwin-arm64/-/darwin-arm64-0.2.0-pre.1.tgz#8309f1b94a100f89d518f4bd9a77f065a0754bd5"
+  integrity sha512-U4+Zer7C5FHgYjYp5687k29W4y8YzizCPJX91OrY4d/ZwXducjIMbIAFp160iZ8R7T2uTsGt6HxV17iXEC0V6w==
 
-"@libsql/darwin-x64@0.1.34":
-  version "0.1.34"
-  resolved "https://registry.yarnpkg.com/@libsql/darwin-x64/-/darwin-x64-0.1.34.tgz#449aa556b87d6d2adfac171c657a403461adba95"
-  integrity sha512-2NQXD9nUzC08hg7FdcZLq5uTEwGz1KbD7YvUzQb/psO1lO/E/p83wl1es1082+Pp0z5pSPDWQeRTuccD41L+3w==
+"@libsql/darwin-x64@0.2.0-pre.1":
+  version "0.2.0-pre.1"
+  resolved "https://registry.yarnpkg.com/@libsql/darwin-x64/-/darwin-x64-0.2.0-pre.1.tgz#f83b8c6f4c930c8e13ecdaec1199b137f3ef6daa"
+  integrity sha512-rxjjpfEQa1NAR8uek/S0naWvCbuL2qV0Wp6YGctTJFUZHUS32/RFYrmT8D5Dv6XlhqIS8XSLUDSAr9lVm4xi2A==
 
 "@libsql/hrana-client@^0.5.5":
   version "0.5.5"
@@ -133,30 +133,30 @@
     "@types/ws" "^8.5.4"
     ws "^8.13.0"
 
-"@libsql/linux-arm64-gnu@0.1.34":
-  version "0.1.34"
-  resolved "https://registry.yarnpkg.com/@libsql/linux-arm64-gnu/-/linux-arm64-gnu-0.1.34.tgz#10751c0e3400b90d429f15d2b8089b55e22e0a9e"
-  integrity sha512-r3dY1FDYZ7eX5HX7HyAoYSqK5FPugj5NSB5Bt/nz+ygBWdXASgSKxkE/RqjJIM59vXwv300iJX9qhR5fXv8sTw==
+"@libsql/linux-arm64-gnu@0.2.0-pre.1":
+  version "0.2.0-pre.1"
+  resolved "https://registry.yarnpkg.com/@libsql/linux-arm64-gnu/-/linux-arm64-gnu-0.2.0-pre.1.tgz#725de14cc40699c1b2612c3b72cce98b4a61bfec"
+  integrity sha512-dWq75OHHhcP3W07AON2oi8xg+MqAibzCQdjly59lr60rdarllqggf4ua6ktP82qcdShJqL2nGvvcYCHV1kILWQ==
 
-"@libsql/linux-arm64-musl@0.1.34":
-  version "0.1.34"
-  resolved "https://registry.yarnpkg.com/@libsql/linux-arm64-musl/-/linux-arm64-musl-0.1.34.tgz#13aadf8a0a33583f23642bfe79a8fab18824c2ed"
-  integrity sha512-9AE/eNb9eQRcNsLxqtpLJxVEoIMmItrdwqJDImPJtOp10rhp4U0x/9RGKerl9Mg3ObVj676pyhAR2KzyudrOfQ==
+"@libsql/linux-arm64-musl@0.2.0-pre.1":
+  version "0.2.0-pre.1"
+  resolved "https://registry.yarnpkg.com/@libsql/linux-arm64-musl/-/linux-arm64-musl-0.2.0-pre.1.tgz#55ef50019309590d3c0de50bc227c2f14c9e62ab"
+  integrity sha512-6SuESjm0ZRuADhFaXRO7+yK7WJwpdlDWOEEqzZfYRV+twlCRXb8WNSQo3O/WYTFbGIdd4dNSIQCy4+tBmbV7Tg==
 
-"@libsql/linux-x64-gnu@0.1.34":
-  version "0.1.34"
-  resolved "https://registry.yarnpkg.com/@libsql/linux-x64-gnu/-/linux-x64-gnu-0.1.34.tgz#27b95165ced6d3191bce01fc203868aed8c60abe"
-  integrity sha512-o8toY1Txstjt13fBhZbFe8sNAW6OaS6qVcp1Bd6bHkCLSBLZ6pjJmwzQN8rFv9QFBPAnaKP3lI4vaOXXw7huTA==
+"@libsql/linux-x64-gnu@0.2.0-pre.1":
+  version "0.2.0-pre.1"
+  resolved "https://registry.yarnpkg.com/@libsql/linux-x64-gnu/-/linux-x64-gnu-0.2.0-pre.1.tgz#5fbb3129056a15c9f95920a1bc3e7a13b13ff1ae"
+  integrity sha512-ATHqNP5hhOgJ3QbgBR+AN3taB0CKbWIFdJ5ObCY841i274zFbZoDe0tjjSlamxS2e1EeG4SjBpLhNhBzDm6jIQ==
 
-"@libsql/linux-x64-musl@0.1.34":
-  version "0.1.34"
-  resolved "https://registry.yarnpkg.com/@libsql/linux-x64-musl/-/linux-x64-musl-0.1.34.tgz#b30bd8ac171ca4275ab93e1858c0177013dc14d5"
-  integrity sha512-EldEmcAxxNPSCjJ73oFxg81PDDIpDbPqK/QOrhmmGYLvYwrnQtVRUIbARf80JQvcy6bCxOO/Q9dh6wGhnyHyYA==
+"@libsql/linux-x64-musl@0.2.0-pre.1":
+  version "0.2.0-pre.1"
+  resolved "https://registry.yarnpkg.com/@libsql/linux-x64-musl/-/linux-x64-musl-0.2.0-pre.1.tgz#d8d6095b9407cf066c5266c67b0deb52cec30d98"
+  integrity sha512-ouiAKD0DzuOfLULjn3VrjgU8BEtsE3Dp7wKyeJnhYSipMiBsWzPlBMmME8+zE5SGExBiTBbv1xxi1s3rHQzaFQ==
 
-"@libsql/win32-x64-msvc@0.1.34":
-  version "0.1.34"
-  resolved "https://registry.yarnpkg.com/@libsql/win32-x64-msvc/-/win32-x64-msvc-0.1.34.tgz#47b7ef1dd80eb43e82f352efbcd961c4792e035a"
-  integrity sha512-jnv0qfVMnrVv00r+wUOe6DHrHuao9y1w1lN543cV2J1JdQNJT/eSZzhyZFSlS3T2ZUvXfZfZ5GeL8U18IAID6w==
+"@libsql/win32-x64-msvc@0.2.0-pre.1":
+  version "0.2.0-pre.1"
+  resolved "https://registry.yarnpkg.com/@libsql/win32-x64-msvc/-/win32-x64-msvc-0.2.0-pre.1.tgz#a98e699a7483c6daaf49abe84c0380884d3c75bb"
+  integrity sha512-P4mT0V+LMKzfraklerCvjrC9rTff7/5JFUpsRpAtw7RFQM2vIt5SqzgGNsHQsWW5/s9Ie0tqQB5A97hVSjgyOw==
 
 "@mapbox/node-pre-gyp@^1.0.0":
   version "1.0.11"
@@ -250,12 +250,12 @@
   resolved "https://registry.yarnpkg.com/@types/json5/-/json5-0.0.29.tgz#ee28707ae94e11d2b827bcbe5270bcea7f3e71ee"
   integrity sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==
 
-"@types/mocha@^10.0.1":
-  version "10.0.1"
-  resolved "https://registry.yarnpkg.com/@types/mocha/-/mocha-10.0.1.tgz#2f4f65bb08bc368ac39c96da7b2f09140b26851b"
-  integrity sha512-/fvYntiO1GeICvqbQ3doGDIP97vWmvFt83GKguJ6prmQM2iXZfFcq6YE8KteFyRtX2/h5Hf91BYvPodJKFYv5Q==
+"@types/mocha@^10.0.4":
+  version "10.0.4"
+  resolved "https://registry.yarnpkg.com/@types/mocha/-/mocha-10.0.4.tgz#b5331955ebca216604691fd4fcd2dbdc2bd559a4"
+  integrity sha512-xKU7bUjiFTIttpWaIZ9qvgg+22O1nmbA+HRxdlR+u6TWsGfmFdXrheJoK4fFxrHNVIOBDvDNKZG+LYBpMHpX3w==
 
-"@types/mysql@^2.15.21":
+"@types/mysql@^2.15.24":
   version "2.15.24"
   resolved "https://registry.yarnpkg.com/@types/mysql/-/mysql-2.15.24.tgz#ccdb7de49567d4bb5029b6f13a49342167b0370a"
   integrity sha512-I0qULi8JBEg0oso69Fe4H4QPR+IdE0yRhZLu3uRhGwQ92m2Epz1cSD5jnXY0nMeZQKd61U8EvnOVMbNE74o3Kw==
@@ -270,19 +270,19 @@
     "@types/node" "*"
     form-data "^4.0.0"
 
-"@types/node@*", "@types/node@^20.4.8":
+"@types/node@*", "@types/node@^20.9.1":
   version "20.9.1"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-20.9.1.tgz#9d578c610ce1e984adda087f685ace940954fe19"
   integrity sha512-HhmzZh5LSJNS5O8jQKpJ/3ZcrrlG6L70hpGqMIAoM9YVD0YBRNWYsfwcXq8VnSjlNpCpgLzMXdiPo+dxcvSmiA==
   dependencies:
     undici-types "~5.26.4"
 
-"@types/pg-format@^1.0.2":
+"@types/pg-format@^1.0.5":
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/@types/pg-format/-/pg-format-1.0.5.tgz#329c4b64ec77d442407f59631c6b86fdb6461672"
   integrity sha512-i+oEEJEC+1I3XAhgqtVp45Faj8MBbV0Aoq4rHsHD7avgLjyDkaWKObd514g0Q/DOUkdxU0P4CQ0iq2KR4SoJcw==
 
-"@types/pg@^8.10.2":
+"@types/pg@^8.10.9":
   version "8.10.9"
   resolved "https://registry.yarnpkg.com/@types/pg/-/pg-8.10.9.tgz#d20bb948c6268c5bd847e2bf968f1194c5a2355a"
   integrity sha512-UksbANNE/f8w0wOMxVKKIrLCbEMV+oM1uKejmwXr39olg4xqcfBDbXxObJAt6XxHbDa4XTKOlUEcEltXDX+XLQ==
@@ -296,7 +296,7 @@
   resolved "https://registry.yarnpkg.com/@types/semver/-/semver-7.5.5.tgz#deed5ab7019756c9c90ea86139106b0346223f35"
   integrity sha512-+d+WYC1BxJ6yVOgUgzK8gWvp5qF8ssV5r4nsDcZWKRWcDQLQ619tvWAxJQYGgBrO1MnLJC7a5GtiYsAoQ47dJg==
 
-"@types/sqlite3@^3.1.8":
+"@types/sqlite3@^3.1.11":
   version "3.1.11"
   resolved "https://registry.yarnpkg.com/@types/sqlite3/-/sqlite3-3.1.11.tgz#845044b81585f1fcc143ee8d963ca5da63d0e768"
   integrity sha512-KYF+QgxAnnAh7DWPdNDroxkDI3/MspH1NMx6m/N/6fT1G6+jvsw4/ZePt8R8cr7ta58aboeTfYFBDxTJ5yv15w==
@@ -310,7 +310,7 @@
   dependencies:
     "@types/node" "*"
 
-"@typescript-eslint/eslint-plugin@^6.2.1":
+"@typescript-eslint/eslint-plugin@^6.11.0":
   version "6.11.0"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/eslint-plugin/-/eslint-plugin-6.11.0.tgz#52aae65174ff526576351f9ccd41cea01001463f"
   integrity sha512-uXnpZDc4VRjY4iuypDBKzW1rz9T5YBBK0snMn8MaTSNd2kMlj50LnLBABELjJiOL5YHk7ZD8hbSpI9ubzqYI0w==
@@ -327,7 +327,7 @@
     semver "^7.5.4"
     ts-api-utils "^1.0.1"
 
-"@typescript-eslint/parser@^6.2.1":
+"@typescript-eslint/parser@^6.11.0":
   version "6.11.0"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/parser/-/parser-6.11.0.tgz#9640d9595d905f3be4f278bf515130e6129b202e"
   integrity sha512-+whEdjk+d5do5nxfxx73oanLL9ghKO3EwM9kBCkUtWMRwWuPaFv9ScuqlYfQ6pAD6ZiJhky7TZ2ZYhrMsfMxVQ==
@@ -1025,7 +1025,7 @@ eslint-plugin-es@^3.0.0:
     eslint-utils "^2.0.0"
     regexpp "^3.0.0"
 
-eslint-plugin-import@^2.28.0:
+eslint-plugin-import@^2.29.0:
   version "2.29.0"
   resolved "https://registry.yarnpkg.com/eslint-plugin-import/-/eslint-plugin-import-2.29.0.tgz#8133232e4329ee344f2f612885ac3073b0b7e155"
   integrity sha512-QPOO5NO6Odv5lpoTkddtutccQjysJuFxoPS7fAHO+9m9udNHvTCPSAMW9zGAYj8lAIdr40I8yPCdUYrncXtrwg==
@@ -1048,7 +1048,7 @@ eslint-plugin-import@^2.28.0:
     semver "^6.3.1"
     tsconfig-paths "^3.14.2"
 
-eslint-plugin-n@^16.0.1:
+eslint-plugin-n@^16.3.1:
   version "16.3.1"
   resolved "https://registry.yarnpkg.com/eslint-plugin-n/-/eslint-plugin-n-16.3.1.tgz#6cd377d1349fed10854b6535392e91fb4123193b"
   integrity sha512-w46eDIkxQ2FaTHcey7G40eD+FhTXOdKudDXPUO2n9WNcslze/i/HT2qJ3GXjHngYSGDISIgPNhwGtgoix4zeOw==
@@ -1106,7 +1106,7 @@ eslint-visitor-keys@^3.3.0, eslint-visitor-keys@^3.4.1, eslint-visitor-keys@^3.4
   resolved "https://registry.yarnpkg.com/eslint-visitor-keys/-/eslint-visitor-keys-3.4.3.tgz#0cd72fe8550e3c2eae156a96a4dddcd1c8ac5800"
   integrity sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag==
 
-eslint@^8.46.0:
+eslint@^8.53.0:
   version "8.53.0"
   resolved "https://registry.yarnpkg.com/eslint/-/eslint-8.53.0.tgz#14f2c8244298fcae1f46945459577413ba2697ce"
   integrity sha512-N4VuiPjXDUa4xVeV/GC/RV3hQW9Nw+Y463lkWaKKXKYMvmRiRDAtfpuPFLN+E1/6ZhyR8J2ig+eVREnYgUsiag==
@@ -1830,21 +1830,21 @@ levn@^0.4.1:
     prelude-ls "^1.2.1"
     type-check "~0.4.0"
 
-libsql@^0.1.28:
-  version "0.1.34"
-  resolved "https://registry.yarnpkg.com/libsql/-/libsql-0.1.34.tgz#a41dddb2e5279c736bbdeeb5750eea13906f44a5"
-  integrity sha512-LGofp7z7gi1Td6vu2GxaA4WyvSPEkuFn0f/ePSti1TsAlBU0LWxdk+bj9D8nqswzxiqe5wpAyTLhVzTIYSyXEA==
+libsql@^0.2.0-pre.1:
+  version "0.2.0-pre.1"
+  resolved "https://registry.yarnpkg.com/libsql/-/libsql-0.2.0-pre.1.tgz#bb42c7b8a90a0c52577838cbac4b2508d3c18b9b"
+  integrity sha512-wVSUo3S6BY7Yz1fbJGVeHzm2HSeG58iAvCg//81Wv1Z7Zm4MoHedd5/0cbn1v0oM6e5SaGprkYS5lDqHgyHlWA==
   dependencies:
     "@neon-rs/load" "^0.0.4"
     detect-libc "2.0.2"
   optionalDependencies:
-    "@libsql/darwin-arm64" "0.1.34"
-    "@libsql/darwin-x64" "0.1.34"
-    "@libsql/linux-arm64-gnu" "0.1.34"
-    "@libsql/linux-arm64-musl" "0.1.34"
-    "@libsql/linux-x64-gnu" "0.1.34"
-    "@libsql/linux-x64-musl" "0.1.34"
-    "@libsql/win32-x64-msvc" "0.1.34"
+    "@libsql/darwin-arm64" "0.2.0-pre.1"
+    "@libsql/darwin-x64" "0.2.0-pre.1"
+    "@libsql/linux-arm64-gnu" "0.2.0-pre.1"
+    "@libsql/linux-arm64-musl" "0.2.0-pre.1"
+    "@libsql/linux-x64-gnu" "0.2.0-pre.1"
+    "@libsql/linux-x64-musl" "0.2.0-pre.1"
+    "@libsql/win32-x64-msvc" "0.2.0-pre.1"
 
 locate-path@^6.0.0:
   version "6.0.0"
@@ -1956,7 +1956,7 @@ minimatch@^3.0.4, minimatch@^3.0.5, minimatch@^3.1.1, minimatch@^3.1.2:
   dependencies:
     brace-expansion "^1.1.7"
 
-minimatch@^9.0.0:
+minimatch@^9.0.3:
   version "9.0.3"
   resolved "https://registry.yarnpkg.com/minimatch/-/minimatch-9.0.3.tgz#a6e00c3de44c3a542bfaae70abfc22420a6da825"
   integrity sha512-RHiac9mvaRw0x3AYRgDC1CxAP7HTcNrrECeA8YYJeWnpo+2Q5CegtZjaotWTWxDG3UeGA1coE05iH1mPjT/2mg==
@@ -2362,7 +2362,7 @@ pg-types@^4.0.1:
     postgres-interval "^3.0.0"
     postgres-range "^1.1.1"
 
-pg@^8.11.2:
+pg@^8.11.3:
   version "8.11.3"
   resolved "https://registry.yarnpkg.com/pg/-/pg-8.11.3.tgz#d7db6e3fe268fcedd65b8e4599cda0b8b4bf76cb"
   integrity sha512-+9iuvG8QfaaUrrph+kpF24cXkH1YOOUeArRNYIxq1viYHZagBxrTno7cecY1Fa44tJeZvaoG+Djpkc3JwehN5g==
@@ -2937,17 +2937,17 @@ typed-array-length@^1.0.4:
     for-each "^0.3.3"
     is-typed-array "^1.1.9"
 
-typedoc@^0.24.8:
-  version "0.24.8"
-  resolved "https://registry.yarnpkg.com/typedoc/-/typedoc-0.24.8.tgz#cce9f47ba6a8d52389f5e583716a2b3b4335b63e"
-  integrity sha512-ahJ6Cpcvxwaxfu4KtjA8qZNqS43wYt6JL27wYiIgl1vd38WW/KWX11YuAeZhuz9v+ttrutSsgK+XO1CjL1kA3w==
+typedoc@^0.25.3:
+  version "0.25.3"
+  resolved "https://registry.yarnpkg.com/typedoc/-/typedoc-0.25.3.tgz#53c6d668e1001b3d488e9a750fcdfb05433554c0"
+  integrity sha512-Ow8Bo7uY1Lwy7GTmphRIMEo6IOZ+yYUyrc8n5KXIZg1svpqhZSWgni2ZrDhe+wLosFS8yswowUzljTAV/3jmWw==
   dependencies:
     lunr "^2.3.9"
     marked "^4.3.0"
-    minimatch "^9.0.0"
+    minimatch "^9.0.3"
     shiki "^0.14.1"
 
-typescript@^5.1.6:
+typescript@^5.2.2:
   version "5.2.2"
   resolved "https://registry.yarnpkg.com/typescript/-/typescript-5.2.2.tgz#5ebb5e5a5b75f085f22bc3f8460fba308310fa78"
   integrity sha512-mI4WrpHsbCIcwT9cF4FZvr80QUeKvsUsUvKDoR+X/7XHQH98xYD8YHZg7ANtz2GtZt/CBq2QJ0thkGJMHfqc1w==
