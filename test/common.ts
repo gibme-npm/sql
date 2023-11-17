@@ -22,7 +22,7 @@ import { describe, it } from 'mocha';
 import * as assert from 'assert';
 import { config } from 'dotenv';
 import { createHash } from 'crypto';
-import { Database } from '../src';
+import { Database, ForeignKeyConstraint } from '../src';
 
 config();
 
@@ -36,6 +36,8 @@ const digest = (value: string): string => {
 
 export const test_table = digest(process.env.SQL_TABLE || 'test');
 const second_table = digest(test_table);
+const third_table = digest(second_table);
+const fourth_table = digest(third_table);
 
 export const runTests = (
     db: Database
@@ -60,6 +62,55 @@ export const runTests = (
             ], ['column1']);
 
             await db.listTables();
+        });
+
+        it('Create table with unique index', async () => {
+            await db.createTable(third_table, [
+                {
+                    name: 'column1',
+                    type: 'varchar(255)'
+                },
+                {
+                    name: 'column2',
+                    type: 'integer',
+                    unique: true
+                }
+            ], ['column1']);
+
+            await db.listTables();
+        });
+
+        it('Drop table with unique index', async () => {
+            try {
+                await db.dropTable(third_table);
+            } catch {}
+        });
+
+        it('Create table with foreign key constraint', async () => {
+            await db.createTable(fourth_table, [
+                {
+                    name: 'column1',
+                    type: 'varchar(255)',
+                    foreignKey: {
+                        table: test_table,
+                        column: 'column1',
+                        onDelete: ForeignKeyConstraint.CASCADE,
+                        onUpdate: ForeignKeyConstraint.CASCADE
+                    }
+                },
+                {
+                    name: 'column2',
+                    type: 'integer'
+                }
+            ], ['column1']);
+
+            await db.listTables();
+        });
+
+        it('Drop table with foreign key constraint', async () => {
+            try {
+                await db.dropTable(fourth_table);
+            } catch {}
         });
 
         it('List', async () => {

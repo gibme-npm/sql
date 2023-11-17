@@ -145,7 +145,13 @@ export default class Postgres extends Database {
             const results: QueryResult<RecordType>[] = [];
 
             for (const query of queries) {
-                results.push(await this._query(query.query, query.values, connection));
+                try {
+                    results.push(await this._query(query.query, query.values, connection));
+                } catch (error: any) {
+                    if (!query.noError) {
+                        throw new Error(error);
+                    }
+                }
             }
 
             await this.commitTransaction(connection);

@@ -211,7 +211,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
         primaryKey: string[],
         tableOptions = this.tableOptions
     ): Query[] {
-        return this._prepareCreateTable(name, fields, primaryKey, tableOptions);
+        return this._prepareCreateTable(this.type, name, fields, primaryKey, tableOptions);
     }
 
     /**
@@ -296,26 +296,35 @@ export default abstract class Database extends EventEmitter implements IDatabase
     /**
      * Prepares the creation of a table including the relevant indexes and constraints
      *
+     * @param databaseType
      * @param name
      * @param fields
      * @param primaryKey
      * @param tableOptions
      */
     protected _prepareCreateTable (
+        databaseType: DatabaseType,
         name: string,
         fields: Column[],
         primaryKey: string[],
         tableOptions: string
     ): Query[] {
+        const is_sqlite = databaseType === DatabaseType.LIBSQL || databaseType === DatabaseType.SQLITE;
+
         const _name = name.trim();
         name = this.escapeId(_name);
 
         primaryKey = primaryKey.map(column => this.escapeId(column));
 
-        const sqlToQuery = (sql: string, values: any[] = []): Query => {
+        const sqlToQuery = (
+            sql: string,
+            values: any[] = [],
+            noError = false
+        ): Query => {
             return {
                 query: sql.trim(),
-                values
+                values,
+                noError
             };
         };
 
@@ -334,9 +343,11 @@ export default abstract class Database extends EventEmitter implements IDatabase
                 .trim();
         });
 
+        const if_not_exists = is_sqlite ? ' IF NOT EXISTS' : '';
+
         const _unique = fields.filter(elem => elem.unique === true)
             .map(column => format(
-                `CREATE UNIQUE INDEX IF NOT EXISTS \`${_name}_unique_${column.name}\` ON %s (%s)`,
+                `CREATE UNIQUE INDEX${if_not_exists} unique_${_name}_${column.name.trim()} ON %s (%s)`,
                 name,
                 this.escapeId(column.name.trim())));
 
@@ -345,7 +356,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
         for (const field of fields) {
             if (field.foreignKey) {
                 let constraint = format(
-                    `, CONSTRAINT \`${_name}_${field.name}_foreign_key\` FOREIGN KEY (%s) REFERENCES %s (%s)`,
+                    `, CONSTRAINT fk_${_name}_${field.name.trim()} FOREIGN KEY (%s) REFERENCES %s (%s)`,
                     this.escapeId(field.name),
                     this.escapeId(field.foreignKey.table),
                     this.escapeId(field.foreignKey.column));
@@ -369,7 +380,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
             _constraints.join(','),
             tableOptions);
 
-        return [sqlToQuery(sql, values), ..._unique.map(sql => sqlToQuery(sql))];
+        return [sqlToQuery(sql, values), ..._unique.map(sql => sqlToQuery(sql, undefined, !is_sqlite))];
     }
 
     /**

@@ -35,6 +35,7 @@ export interface QueryMetaData {
 export interface Query {
     query: string;
     values?: any[];
+    noError?: boolean;
 }
 
 export type QueryResult<RecordType = any> = [RecordType[], QueryMetaData, Query];

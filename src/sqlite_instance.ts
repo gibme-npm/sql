@@ -449,10 +449,16 @@ export default class SQLiteInstance extends EventEmitter {
             const results: QueryResult<RecordType>[] = [];
 
             for (const query of queries) {
-                if (query.query.toLowerCase().startsWith('select')) {
-                    results.push(await this._all(query));
-                } else {
-                    results.push(await this._run(query));
+                try {
+                    if (query.query.toLowerCase().startsWith('select')) {
+                        results.push(await this._all(query));
+                    } else {
+                        results.push(await this._run(query));
+                    }
+                } catch (error: any) {
+                    if (!query.noError) {
+                        throw new Error(error);
+                    }
                 }
             }
 

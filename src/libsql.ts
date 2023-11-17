@@ -158,17 +158,23 @@ export default class LibSQL extends Database {
 
             try {
                 for (const query of queries) {
-                    const result_set = await connection.execute(this.toInStmt(query));
+                    try {
+                        const result_set = await connection.execute(this.toInStmt(query));
 
-                    results.push([
-                        result_set.rows as any[],
-                        {
-                            changedRows: result_set.rowsAffected,
-                            affectedRows: result_set.rowsAffected,
-                            length: result_set.rows.length
-                        },
-                        query
-                    ]);
+                        results.push([
+                            result_set.rows as any[],
+                            {
+                                changedRows: result_set.rowsAffected,
+                                affectedRows: result_set.rowsAffected,
+                                length: result_set.rows.length
+                            },
+                            query
+                        ]);
+                    } catch (error: any) {
+                        if (!query.noError) {
+                            throw new Error(error);
+                        }
+                    }
                 }
 
                 await this.commitTransaction(connection);
