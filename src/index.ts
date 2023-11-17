@@ -23,15 +23,61 @@ import MySQL, { PoolConfig as MySQLPoolConfig } from './mysql';
 import SQLite, { DatabaseConfig as SQLiteConfig } from './sqlite';
 import LibSQL, { DatabaseConfig as LibSQLConfig, DBPath as LibSQLDBPath } from './libsql';
 import Database, { IDatabase } from './database';
+import { config } from 'dotenv';
+import { DatabaseType } from './types';
 
 export * from './types';
+
+config();
+
+export const createConnection = (
+    database_type: DatabaseType = parseInt(process.env.DATABASE_TYPE || '2') || DatabaseType.SQLITE,
+    options: Partial<PostgresPoolConfig | MySQLPoolConfig | SQLiteConfig | LibSQLConfig> = {}
+): Database => {
+    switch (database_type) {
+        case DatabaseType.SQLITE:
+            return new SQLite({
+                filename: process.env.SQL_FILENAME,
+                ...options as any
+            });
+        case DatabaseType.MYSQL:
+            return new MySQL({
+                host: process.env.SQL_HOST,
+                port: parseInt(process.env.SQL_PORT || '') || undefined,
+                user: process.env.SQL_USERNAME,
+                password: process.env.SQL_PASSWORD,
+                database: process.env.SQL_DATABASE,
+                rejectUnauthorized: false,
+                ...options as any
+            });
+        case DatabaseType.POSTGRES:
+            return new Postgres({
+                host: process.env.SQL_HOST,
+                port: parseInt(process.env.SQL_PORT || '') || undefined,
+                user: process.env.SQL_USERNAME,
+                password: process.env.SQL_PASSWORD,
+                database: process.env.SQL_DATABASE,
+                ssl: process.env.SQL_SSL === 'true',
+                ...options as any
+            });
+        case DatabaseType.LIBSQL:
+            return new LibSQL({
+                url: process.env.SQL_URL,
+                tls: process.env.SQL_SSL === 'true',
+                ...options as any
+            });
+        default:
+            throw new Error('Invalid database type specified');
+    }
+};
 
 export default {
     Postgres,
     MySQL,
     SQLite,
     LibSQL,
-    Database
+    Database,
+    createConnection
 };
 
 export {
