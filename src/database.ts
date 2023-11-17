@@ -307,7 +307,9 @@ export default abstract class Database extends EventEmitter implements IDatabase
         primaryKey: string[],
         tableOptions: string
     ): Query[] {
-        name = this.escapeId(name);
+        const _name = name.trim();
+        name = this.escapeId(_name);
+
         primaryKey = primaryKey.map(column => this.escapeId(column));
 
         const sqlToQuery = (sql: string, values: any[] = []): Query => {
@@ -333,24 +335,20 @@ export default abstract class Database extends EventEmitter implements IDatabase
         });
 
         const _unique = fields.filter(elem => elem.unique === true)
-            .map(column => format('CREATE UNIQUE INDEX IF NOT EXISTS %s_unique_%s ON %s (%s)',
-                name,
-                this.escapeId(column.name),
+            .map(column => format(
+                `CREATE UNIQUE INDEX IF NOT EXISTS \`${_name}_unique_${column.name}\` ON %s (%s)`,
                 name,
                 this.escapeId(column.name.trim())));
-
-        const constraint_fmt = ', CONSTRAINT %s_%s_foreign_key FOREIGN KEY (%s) REFERENCES %s (%s)';
 
         const _constraints: string[] = [];
 
         for (const field of fields) {
             if (field.foreignKey) {
-                let constraint = format(constraint_fmt,
-                    name,
+                let constraint = format(
+                    `, CONSTRAINT \`${_name}_${field.name}_foreign_key\` FOREIGN KEY (%s) REFERENCES %s (%s)`,
                     this.escapeId(field.name),
-                    this.escapeId(field.name),
-                    field.foreignKey.table,
-                    field.foreignKey.column);
+                    this.escapeId(field.foreignKey.table),
+                    this.escapeId(field.foreignKey.column));
 
                 if (field.foreignKey.onDelete) {
                     constraint += format(' ON DELETE %s', field.foreignKey.onDelete);
