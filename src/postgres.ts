@@ -262,8 +262,8 @@ export default class Postgres extends Database {
         }
 
         return [result.rows, {
-            changedRows: result.rows.length === 0 ? result.rowCount : 0,
-            affectedRows: result.rows.length === 0 ? result.rowCount : 0,
+            changedRows: result.rows.length === 0 ? result.rowCount || 0 : 0,
+            affectedRows: result.rows.length === 0 ? result.rowCount || 0 : 0,
             length: result.rows.length
         }, {
             query,
