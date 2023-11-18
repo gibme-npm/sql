@@ -372,7 +372,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
                     field.foreignKey.column
                 ].join('_');
 
-                let constraint = `, CONSTRAINT ${key_name} ` +
+                let constraint = `CONSTRAINT ${key_name} ` +
                     `FOREIGN KEY (${this.escapeId(field.name)}) ` +
                     `REFERENCES ${this.escapeId(field.foreignKey.table)} ` +
                     `(${this.escapeId(field.foreignKey.column)})`;
@@ -475,7 +475,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
             '(',
             fields.join(', '),
             primary_key,
-            constraints.join(', '),
+            constraints.length !== 0 ? `, ${constraints.join(', ')}` : '',
             ')',
             tableOptions
         ].filter(elem => elem.length !== 0)
