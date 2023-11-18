@@ -172,5 +172,4 @@ docs/
 
 *.db
 *.sqlite3
-*.sqlite
-
+*.sqlite*

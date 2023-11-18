@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/**
+ * The DBMS type
+ */
 export enum DatabaseType {
     MYSQL,
     POSTGRES,
@@ -26,6 +29,9 @@ export enum DatabaseType {
     MARIADB
 }
 
+/**
+ * Query result meta data
+ */
 export interface QueryMetaData {
     changedRows: number;
     affectedRows: number;
@@ -33,19 +39,31 @@ export interface QueryMetaData {
     length: number;
 }
 
+/**
+ * A query
+ */
 export interface Query {
     query: string;
     values?: any[];
     noError?: boolean;
 }
 
+/**
+ * A Query result
+ */
 export type QueryResult<RecordType = any> = [RecordType[], QueryMetaData, Query];
 
+/**
+ * Index types supported
+ */
 export enum IndexType {
     NONE = '',
     UNIQUE = 'UNIQUE'
 }
 
+/**
+ * Foreign key constraint types
+ */
 export enum ForeignKeyConstraint {
     RESTRICT = 'RESTRICT',
     CASCADE = 'CASCADE',
@@ -54,6 +72,9 @@ export enum ForeignKeyConstraint {
     NA = 'NO ACTION'
 }
 
+/**
+ * A foreign key description
+ */
 export interface ForeignKey {
     table: string;
     column: string;
@@ -61,6 +82,9 @@ export interface ForeignKey {
     onDelete?: ForeignKeyConstraint;
 }
 
+/**
+ * A column description
+ */
 export interface Column {
     name: string;
     type: string;

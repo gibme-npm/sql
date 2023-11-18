@@ -38,6 +38,7 @@ export const test_table = digest(process.env.SQL_TABLE || 'test');
 const second_table = digest(test_table);
 const third_table = digest(second_table);
 const fourth_table = digest(third_table);
+const fifth_table = digest(fourth_table);
 
 export const runTests = (
     db: Database
@@ -64,7 +65,7 @@ export const runTests = (
             await db.listTables();
         });
 
-        it('Create table with unique index', async () => {
+        it(`Create ${third_table} with unique index`, async () => {
             await db.createTable(third_table, [
                 {
                     name: 'column1',
@@ -78,15 +79,13 @@ export const runTests = (
             ], ['column1']);
 
             await db.listTables();
-        });
 
-        it('Drop table with unique index', async () => {
             try {
                 await db.dropTable(third_table);
             } catch {}
         });
 
-        it('Create table with foreign key constraint', async () => {
+        it(`Create ${fourth_table} with foreign key constraint`, async () => {
             await db.createTable(fourth_table, [
                 {
                     name: 'column1',
@@ -105,11 +104,34 @@ export const runTests = (
             ], ['column1']);
 
             await db.listTables();
-        });
 
-        it('Drop table with foreign key constraint', async () => {
             try {
                 await db.dropTable(fourth_table);
+            } catch {}
+        });
+
+        it(`Create ${fifth_table} with no primary key`, async () => {
+            await db.createTable(fifth_table, [
+                {
+                    name: 'column1',
+                    type: 'varchar(255)',
+                    foreignKey: {
+                        table: test_table,
+                        column: 'column1',
+                        onDelete: ForeignKeyConstraint.CASCADE,
+                        onUpdate: ForeignKeyConstraint.CASCADE
+                    }
+                },
+                {
+                    name: 'column2',
+                    type: 'integer'
+                }
+            ]);
+
+            await db.listTables();
+
+            try {
+                await db.dropTable(fifth_table);
             } catch {}
         });
 

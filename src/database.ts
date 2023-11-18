@@ -20,7 +20,6 @@
 
 import { EventEmitter } from 'events';
 import { Column, DatabaseType, IndexType, Query, QueryResult } from './types';
-import { format } from 'util';
 import pgformat from 'pg-format';
 import { escape as mysqlEscape, escapeId as mysqlEscapeId } from 'mysql';
 
@@ -34,7 +33,7 @@ export interface IDatabase {
     escapeId: (id: string) => string;
     tableOptions: string;
     close: () => Promise<void>;
-    createTable: (
+    createTable?: (
         name: string,
         fields: Column[],
         primaryKey: string[],
@@ -234,7 +233,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
     public prepareCreateTable (
         name: string,
         fields: Column[],
-        primaryKey: string[],
+        primaryKey: string[] = [],
         tableOptions = this.tableOptions
     ): Query[] {
         return this._prepareCreateTable(this.type, name, fields, primaryKey, tableOptions);
@@ -253,7 +252,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
     public async createTable (
         name: string,
         fields: Column[],
-        primaryKey: string[],
+        primaryKey: string[] = [],
         tableOptions = this.tableOptions,
         useTransaction = true
     ): Promise<void> {
@@ -345,6 +344,55 @@ export default abstract class Database extends EventEmitter implements IDatabase
     protected abstract rollbackTransaction(connection: any): Promise<void>;
 
     /**
+     * Prepares any foreign key constraints based upon the field supplied
+     *
+     * @param table
+     * @param fields
+     * @protected
+     */
+    protected _prepareConstraints (
+        table: string,
+        fields: Column[]
+    ): string[] {
+        table = table.trim();
+
+        const constraints: string[] = [];
+
+        for (const field of fields) {
+            if (field.foreignKey) {
+                field.name = field.name.trim();
+                field.foreignKey.table = field.foreignKey.table.trim();
+                field.foreignKey.column = field.foreignKey.column.trim();
+
+                const key_name = [
+                    'fk',
+                    table,
+                    field.name,
+                    field.foreignKey.table,
+                    field.foreignKey.column
+                ].join('_');
+
+                let constraint = `, CONSTRAINT ${key_name} ` +
+                    `FOREIGN KEY (${this.escapeId(field.name)}) ` +
+                    `REFERENCES ${this.escapeId(field.foreignKey.table)} ` +
+                    `(${this.escapeId(field.foreignKey.column)})`;
+
+                if (field.foreignKey.onDelete) {
+                    constraint += ` ON DELETE ${field.foreignKey.onDelete}`;
+                }
+
+                if (field.foreignKey.onUpdate) {
+                    constraint += ` ON UPDATE ${field.foreignKey.onUpdate}`;
+                }
+
+                constraints.push(constraint.trim());
+            }
+        }
+
+        return constraints;
+    }
+
+    /**
      * Prepares the creation of an index on a table
      *
      * @param databaseType
@@ -360,6 +408,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
         type: IndexType = IndexType.NONE
     ): Query {
         table = table.trim();
+        fields = fields.map(field => field.trim());
 
         const can_if_not_exists = databaseType !== DatabaseType.MYSQL;
         const if_not_exists = can_if_not_exists ? ' IF NOT EXISTS' : '';
@@ -372,87 +421,105 @@ export default abstract class Database extends EventEmitter implements IDatabase
     }
 
     /**
+     * Prepares statements to create indexes during a CREATE table statement
+     *
+     * @param databaseType
+     * @param table
+     * @param fields
+     * @param type
+     * @protected
+     */
+    protected _prepareCreateIndexes (
+        databaseType: DatabaseType,
+        table: string,
+        fields: Column[],
+        type: IndexType = IndexType.NONE
+    ): Query[] {
+        table = table.trim();
+
+        return fields.filter(column => column.unique === true)
+            .map(column =>
+                this._prepareCreateIndex(databaseType, table, [column.name], type));
+    }
+
+    /**
      * Prepares the creation of a table including the relevant indexes and constraints
      *
      * @param databaseType
-     * @param name
-     * @param fields
+     * @param table
+     * @param columns
      * @param primaryKey
      * @param tableOptions
      */
     protected _prepareCreateTable (
         databaseType: DatabaseType,
-        name: string,
-        fields: Column[],
-        primaryKey: string[],
-        tableOptions: string
+        table: string,
+        columns: Column[],
+        primaryKey: string[] = [],
+        tableOptions: string = ''
     ): Query[] {
-        const _name = name.trim();
-        name = this.escapeId(_name);
-
+        table = table.trim();
         primaryKey = primaryKey.map(column => this.escapeId(column));
 
-        const sqlToQuery = (
-            sql: string,
-            values: any[] = [],
-            noError = false
-        ): Query => {
-            return {
-                query: sql.trim(),
-                values,
-                noError
-            };
-        };
+        const [fields, values] = this._prepareColumns(columns);
 
+        const constraints = this._prepareConstraints(table, columns);
+
+        const primary_key = primaryKey.length !== 0
+            ? `, PRIMARY KEY (${primaryKey.join(', ')})`
+            : '';
+
+        const query = [
+            'CREATE TABLE IF NOT EXISTS',
+            this.escapeId(table),
+            '(',
+            fields.join(', '),
+            primary_key,
+            constraints.join(', '),
+            ')',
+            tableOptions
+        ].filter(elem => elem.length !== 0)
+            .map(elem => elem.trim())
+            .join(' ')
+            .trim();
+
+        const unique = this._prepareCreateIndexes(databaseType, table, columns, IndexType.UNIQUE);
+
+        return [
+            {
+                query,
+                values
+            },
+            ...unique
+        ];
+    }
+
+    /**
+     * Prepares the columns for a CREATE statement
+     *
+     * @param fields
+     * @protected
+     */
+    protected _prepareColumns (
+        fields: Column[]
+    ): [string[], any[]] {
         const values: any[] = [];
+        const columns: string[] = [];
 
-        const _fields = fields.map(column => {
+        for (const column of fields) {
             if (typeof column.default !== 'undefined') {
                 values.push(column.default);
             }
 
-            return format('%s %s %s %s',
-                this.escapeId(column.name),
-                column.type.toUpperCase(),
-                !column.nullable ? 'NOT NULL' : 'NULL',
-                typeof column.default !== 'undefined' ? 'DEFAULT ?' : '')
-                .trim();
-        });
-
-        const _unique = fields.filter(elem => elem.unique === true)
-            .map(column =>
-                this._prepareCreateIndex(databaseType, _name, [column.name], IndexType.UNIQUE));
-
-        const _constraints: string[] = [];
-
-        for (const field of fields) {
-            if (field.foreignKey) {
-                let constraint = format(
-                    `, CONSTRAINT fk_${_name}_${field.name.trim()} FOREIGN KEY (%s) REFERENCES %s (%s)`,
-                    this.escapeId(field.name),
-                    this.escapeId(field.foreignKey.table),
-                    this.escapeId(field.foreignKey.column));
-
-                if (field.foreignKey.onDelete) {
-                    constraint += format(' ON DELETE %s', field.foreignKey.onDelete);
-                }
-
-                if (field.foreignKey.onUpdate) {
-                    constraint += format(' ON UPDATE %s', field.foreignKey.onUpdate);
-                }
-
-                _constraints.push(constraint.trim());
-            }
+            columns.push(
+                `${this.escapeId(column.name)} ${column.type.toUpperCase()} ` +
+                `${!column.nullable ? 'NOT NULL' : 'NULL'} ` +
+                `${typeof column.default !== 'undefined' ? 'DEFAULT ?' : ''}`
+                    .trim()
+            );
         }
 
-        const sql = format('CREATE TABLE IF NOT EXISTS %s (%s, PRIMARY KEY (%s)%s) %s;',
-            name,
-            _fields.join(','),
-            primaryKey.join(','),
-            _constraints.join(','),
-            tableOptions);
-
-        return [sqlToQuery(sql, values), ..._unique];
+        return [columns, values];
     }
 
     /**
@@ -581,6 +648,13 @@ export default abstract class Database extends EventEmitter implements IDatabase
         });
     }
 
+    /**
+     * Executes multiple statements and returns their results in a single QueryResult
+     *
+     * @param queries
+     * @param useTransaction
+     * @protected
+     */
     protected async _executeMulti (
         queries: Query[],
         useTransaction: boolean
