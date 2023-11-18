@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { after, describe } from 'mocha';
-import { Database, DatabaseType, LibSQL, MySQL, Postgres, SQLite } from '../src';
+import { Database, DatabaseType, LibSQL, MySQL, Postgres, SQLite, MariaDB } from '../src';
 import { runTests, test_table } from './common';
 import { config } from 'dotenv';
 import { resolve } from 'path';
@@ -31,13 +31,23 @@ config();
 
 const engines: Database[] = [
     new SQLite({ filename: test_db }),
-    new LibSQL({ url: `file:${test_db}` }),
+    new LibSQL({ url: `file:${test_db}.lib` }),
     new MySQL({
         host: process.env.MYSQL_HOST,
         port: process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT) : undefined,
         user: process.env.MYSQL_USER,
         password: process.env.MYSQL_PASSWORD,
         database: process.env.MYSQL_DATABASE,
+        useSSL: process.env.MYSQL_SSL === 'true',
+        connectTimeout: 30_000
+    }),
+    new MariaDB({
+        host: process.env.MARIADB_HOST,
+        port: process.env.MARIADB_PORT ? parseInt(process.env.MARIADB_PORT) : undefined,
+        user: process.env.MARIADB_USER,
+        password: process.env.MARIADB_PASSWORD,
+        database: process.env.MARIADB_DATABASE,
+        useSSL: process.env.MARIADB_SSL === 'true',
         connectTimeout: 30_000
     }),
     new Postgres({

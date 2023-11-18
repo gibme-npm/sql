@@ -19,7 +19,16 @@
 // SOFTWARE.
 
 import { Client, Config, createClient, InStatement, Transaction } from '@libsql/client';
-import { Column, DatabaseType, ForeignKey, ForeignKeyConstraint, Query, QueryMetaData, QueryResult } from './types';
+import {
+    Column,
+    DatabaseType,
+    ForeignKey,
+    ForeignKeyConstraint,
+    make_error,
+    Query,
+    QueryMetaData,
+    QueryResult
+} from './types';
 import { resolve } from 'path';
 import Database, { IDatabase } from './database';
 
@@ -172,7 +181,7 @@ export default class LibSQL extends Database {
                         ]);
                     } catch (error: any) {
                         if (!query.noError) {
-                            throw new Error(error);
+                            throw make_error(error);
                         }
                     }
                 }

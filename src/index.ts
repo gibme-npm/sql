@@ -19,19 +19,20 @@
 // SOFTWARE.
 
 import Postgres, { PoolConfig as PostgresPoolConfig } from './postgres';
-import MySQL, { PoolConfig as MySQLPoolConfig } from './mysql';
+import MySQL, { PoolConfig as MySQLPoolConfig, MySQLConfig } from './mysql';
 import SQLite, { DatabaseConfig as SQLiteConfig } from './sqlite';
 import LibSQL, { DatabaseConfig as LibSQLConfig, DBPath as LibSQLDBPath } from './libsql';
 import Database, { IDatabase } from './database';
 import { config } from 'dotenv';
 import { DatabaseType } from './types';
+import MariaDB from './mariadb';
 
 export * from './types';
 
 config();
 
 export const createConnection = (
-    database_type: DatabaseType = parseInt(process.env.DATABASE_TYPE || '2') || DatabaseType.SQLITE,
+    database_type: DatabaseType = parseInt(process.env.SQL_TYPE || '2') || DatabaseType.SQLITE,
     options: Partial<PostgresPoolConfig | MySQLPoolConfig | SQLiteConfig | LibSQLConfig> = {}
 ): Database => {
     switch (database_type) {
@@ -48,6 +49,18 @@ export const createConnection = (
                 password: process.env.SQL_PASSWORD,
                 database: process.env.SQL_DATABASE,
                 rejectUnauthorized: false,
+                useSSL: process.env.SQL_SSL === 'true',
+                ...options as any
+            });
+        case DatabaseType.MARIADB:
+            return new MariaDB({
+                host: process.env.SQL_HOST,
+                port: parseInt(process.env.SQL_PORT || '') || undefined,
+                user: process.env.SQL_USERNAME,
+                password: process.env.SQL_PASSWORD,
+                database: process.env.SQL_DATABASE,
+                rejectUnauthorized: false,
+                useSSL: process.env.SQL_SSL === 'true',
                 ...options as any
             });
         case DatabaseType.POSTGRES:
@@ -76,11 +89,12 @@ export default {
     MySQL,
     SQLite,
     LibSQL,
+    MariaDB,
     Database,
     createConnection
 };
 
 export {
-    Postgres, MySQL, SQLite, Database, PostgresPoolConfig,
-    MySQLPoolConfig, SQLiteConfig, LibSQL, LibSQLConfig, LibSQLDBPath, IDatabase
+    Postgres, MySQL, MariaDB, SQLite, Database, PostgresPoolConfig,
+    MySQLPoolConfig, SQLiteConfig, LibSQL, LibSQLConfig, LibSQLDBPath, IDatabase, MySQLConfig
 };

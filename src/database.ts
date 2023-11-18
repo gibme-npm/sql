@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { EventEmitter } from 'events';
-import { Column, DatabaseType, Query, QueryResult } from './types';
+import { Column, DatabaseType, IndexType, Query, QueryResult } from './types';
 import { format } from 'util';
 import pgformat from 'pg-format';
 import { escape as mysqlEscape, escapeId as mysqlEscapeId } from 'mysql';
@@ -40,6 +40,11 @@ export interface IDatabase {
         primaryKey: string[],
         tableOptions?: string,
         useTransaction?: boolean
+    ) => Promise<void>;
+    createIndex: (
+        table: string,
+        fields: string[],
+        type: IndexType
     ) => Promise<void>;
     use: (database: string) => Promise<IDatabase>;
     listTables: (database?: string) => Promise<string[]>;
@@ -73,6 +78,11 @@ export interface IDatabase {
         columns: string[],
         values: any[][]
     ) => Query[];
+    prepareCreateIndex: (
+        table: string,
+        fields: string[],
+        type: IndexType
+    ) => Query[];
     prepareCreateTable: (
         name: string,
         fields: Column[],
@@ -99,6 +109,8 @@ export default abstract class Database extends EventEmitter implements IDatabase
                 return 'Postgres';
             case DatabaseType.SQLITE:
                 return 'SQLite';
+            case DatabaseType.MARIADB:
+                return 'MariaDB';
         }
     }
 
@@ -199,6 +211,20 @@ export default abstract class Database extends EventEmitter implements IDatabase
     }
 
     /**
+     * Prepares the creation of an index on the specified table
+     * @param table
+     * @param fields
+     * @param type
+     */
+    public prepareCreateIndex (
+        table: string,
+        fields: string[],
+        type: IndexType = IndexType.NONE
+    ): Query[] {
+        return [this._prepareCreateIndex(this.type, table, fields, type)];
+    }
+
+    /**
      * Prepares the creation of a table including the relevant indexes and constraints
      * @param name
      * @param fields
@@ -216,7 +242,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
 
     /**
      * Prepares and executes the creation of a table including the relevant indexes and
-     * constraints (are not supported)
+     * constraints
      *
      * @param name
      * @param fields
@@ -232,6 +258,31 @@ export default abstract class Database extends EventEmitter implements IDatabase
         useTransaction = true
     ): Promise<void> {
         const queries = this.prepareCreateTable(name, fields, primaryKey, tableOptions);
+
+        if (useTransaction) {
+            await this.transaction(queries);
+        } else {
+            for (const query of queries) {
+                await this.query(query);
+            }
+        }
+    }
+
+    /**
+     * Prepares and executes the creation of an index on the table specified
+     *
+     * @param table
+     * @param fields
+     * @param type
+     * @param useTransaction
+     */
+    public async createIndex (
+        table: string,
+        fields: string[],
+        type: IndexType = IndexType.NONE,
+        useTransaction = true
+    ): Promise<void> {
+        const queries = this.prepareCreateIndex(table, fields, type);
 
         if (useTransaction) {
             await this.transaction(queries);
@@ -294,6 +345,33 @@ export default abstract class Database extends EventEmitter implements IDatabase
     protected abstract rollbackTransaction(connection: any): Promise<void>;
 
     /**
+     * Prepares the creation of an index on a table
+     *
+     * @param databaseType
+     * @param table
+     * @param fields
+     * @param type
+     * @protected
+     */
+    protected _prepareCreateIndex (
+        databaseType: DatabaseType,
+        table: string,
+        fields: string[],
+        type: IndexType = IndexType.NONE
+    ): Query {
+        table = table.trim();
+
+        const can_if_not_exists = databaseType !== DatabaseType.MYSQL;
+        const if_not_exists = can_if_not_exists ? ' IF NOT EXISTS' : '';
+
+        return {
+            query: `CREATE ${type} INDEX${if_not_exists} ${type.toLowerCase()}_${table}_${fields.join('_')} ` +
+                `ON ${this.escapeId(table)} (${fields.map(elem => this.escapeId(elem)).join(',')})`,
+            noError: !can_if_not_exists
+        };
+    }
+
+    /**
      * Prepares the creation of a table including the relevant indexes and constraints
      *
      * @param databaseType
@@ -309,8 +387,6 @@ export default abstract class Database extends EventEmitter implements IDatabase
         primaryKey: string[],
         tableOptions: string
     ): Query[] {
-        const is_sqlite = databaseType === DatabaseType.LIBSQL || databaseType === DatabaseType.SQLITE;
-
         const _name = name.trim();
         name = this.escapeId(_name);
 
@@ -343,13 +419,9 @@ export default abstract class Database extends EventEmitter implements IDatabase
                 .trim();
         });
 
-        const if_not_exists = is_sqlite ? ' IF NOT EXISTS' : '';
-
         const _unique = fields.filter(elem => elem.unique === true)
-            .map(column => format(
-                `CREATE UNIQUE INDEX${if_not_exists} unique_${_name}_${column.name.trim()} ON %s (%s)`,
-                name,
-                this.escapeId(column.name.trim())));
+            .map(column =>
+                this._prepareCreateIndex(databaseType, _name, [column.name], IndexType.UNIQUE));
 
         const _constraints: string[] = [];
 
@@ -380,7 +452,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
             _constraints.join(','),
             tableOptions);
 
-        return [sqlToQuery(sql, values), ..._unique.map(sql => sqlToQuery(sql, undefined, !is_sqlite))];
+        return [sqlToQuery(sql, values), ..._unique];
     }
 
     /**
@@ -477,7 +549,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
 
         const updates: string[] = [];
 
-        if (databaseType === DatabaseType.MYSQL) {
+        if (databaseType === DatabaseType.MYSQL || databaseType === DatabaseType.MARIADB) {
             for (const column of columns) {
                 if (primaryKey.includes(column)) {
                     continue;

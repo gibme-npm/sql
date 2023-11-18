@@ -7,6 +7,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./mysql": "./dist/mysql.js",
+    "./mariadb": "./dist/mariadb.js",
     "./postgres": "./dist/postgres.js",
     "./sqlite": "./dist/sqlite.js",
     "./libsql": "./dist/libsql.js",
@@ -16,6 +17,9 @@
     "*": {
       "mysql": [
         "./dist/mysql.d.ts"
+      ],
+      "mariadb": [
+        "./dist/mariadb.d.ts"
       ],
       "postgres": [
         "./dist/postgres.d.ts"

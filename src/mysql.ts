@@ -19,11 +19,25 @@
 // SOFTWARE.
 
 import { createPool, Pool, PoolConfig, PoolConnection } from 'mysql';
-import { Column, DatabaseType, ForeignKey, ForeignKeyConstraint, Query, QueryMetaData, QueryResult } from './types';
+import {
+    Column,
+    DatabaseType,
+    ForeignKey,
+    ForeignKeyConstraint,
+    make_error,
+    Query,
+    QueryMetaData,
+    QueryResult
+} from './types';
 import Database, { IDatabase } from './database';
 
 export { PoolConfig };
 export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData, IDatabase };
+
+/**
+ * Expanded MySQL Configuration
+ */
+export type MySQLConfig = PoolConfig & { rejectUnauthorized?: boolean; useSSL?: boolean };
 
 export default class MySQL extends Database {
     public readonly pool: Pool;
@@ -32,18 +46,26 @@ export default class MySQL extends Database {
      * Creates a new instance of the class
      *
      * @param config
+     * @param override_type
      */
-    constructor (public readonly config: PoolConfig & { rejectUnauthorized?: boolean } = {}) {
-        super(DatabaseType.MYSQL, 'ENGINE=InnoDB PACK_KEYS=1 ROW_FORMAT=COMPRESSED');
+    constructor (
+        public readonly config: MySQLConfig = {},
+        override_type: DatabaseType.MYSQL | DatabaseType.MARIADB = DatabaseType.MYSQL
+    ) {
+        super(override_type, 'ENGINE=InnoDB PACK_KEYS=1 ROW_FORMAT=COMPRESSED');
 
         this.config.host ??= '127.0.0.1';
         this.config.port ??= 3306;
         this.config.user ??= '';
         this.config.connectTimeout ??= 30_000;
+        this.config.useSSL ??= false;
         this.config.rejectUnauthorized ??= false;
-        this.config.ssl ||= {
-            rejectUnauthorized: this.config.rejectUnauthorized
-        };
+
+        if (this.config.useSSL) {
+            this.config.ssl ||= {
+                rejectUnauthorized: this.config.rejectUnauthorized
+            };
+        }
 
         this.pool = createPool(this.config);
 
@@ -154,7 +176,7 @@ export default class MySQL extends Database {
                     results.push(await this._query(query.query, query.values, connection));
                 } catch (error: any) {
                     if (!query.noError) {
-                        throw new Error(error);
+                        throw make_error(error);
                     }
                 }
             }

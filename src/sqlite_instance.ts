@@ -20,7 +20,7 @@
 
 import { Database } from 'sqlite3';
 import { EventEmitter } from 'events';
-import { Query, QueryResult } from './types';
+import { make_error, Query, QueryResult } from './types';
 
 export enum DatabaseOpenMode {
     READONLY = 0x00000001,
@@ -457,7 +457,7 @@ export default class SQLiteInstance extends EventEmitter {
                     }
                 } catch (error: any) {
                     if (!query.noError) {
-                        throw new Error(error);
+                        throw make_error(error);
                     }
                 }
             }

@@ -34,6 +34,12 @@ jobs:
         MYSQL_USER: ${{ secrets.MYSQL_USER }}
         MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
         MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
+        MARIADB_HOST: ${{ secrets.MARIADB_HOST }}
+        MARIADB_USER: ${{ secrets.MARIADB_USER }}
+        MARIADB_PORT: ${{ secrets.MARIADB_PORT }}
+        MARIADB_PASSWORD: ${{ secrets.MARIADB_PASSWORD }}
+        MARIADB_DATABASE: ${{ secrets.MARIADB_DATABASE }}
+        MARIADB_SSL: ${{ secrets.MARIADB_SSL }}
         PGSQL_HOST: ${{ secrets.PGSQL_HOST }}
         PGSQL_USER: ${{ secrets.PGSQL_USER }}
         PGSQL_PASSWORD: ${{ secrets.PGSQL_PASSWORD }}

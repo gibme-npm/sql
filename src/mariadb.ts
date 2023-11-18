@@ -18,63 +18,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export enum DatabaseType {
-    MYSQL,
-    POSTGRES,
-    SQLITE,
-    LIBSQL,
-    MARIADB
-}
+import {
+    MySQL,
+    PoolConfig,
+    Column,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Query,
+    QueryResult,
+    QueryMetaData,
+    IDatabase,
+    MySQLConfig
+} from './mysql';
+import { DatabaseType } from './types';
 
-export interface QueryMetaData {
-    changedRows: number;
-    affectedRows: number;
-    insertId?: number;
-    length: number;
-}
-
-export interface Query {
-    query: string;
-    values?: any[];
-    noError?: boolean;
-}
-
-export type QueryResult<RecordType = any> = [RecordType[], QueryMetaData, Query];
-
-export enum IndexType {
-    NONE = '',
-    UNIQUE = 'UNIQUE'
-}
-
-export enum ForeignKeyConstraint {
-    RESTRICT = 'RESTRICT',
-    CASCADE = 'CASCADE',
-    NULL = 'SET NULL',
-    DEFAULT = 'SET DEFAULT',
-    NA = 'NO ACTION'
-}
-
-export interface ForeignKey {
-    table: string;
-    column: string;
-    onUpdate?: ForeignKeyConstraint;
-    onDelete?: ForeignKeyConstraint;
-}
-
-export interface Column {
-    name: string;
-    type: string;
-    nullable?: boolean;
-    foreignKey?: ForeignKey;
-    unique?: boolean;
-    default?: string | number | boolean;
-}
-
-/** @ignore */
-export const make_error = (error: any): Error => {
-    if (error instanceof Error) {
-        return error;
+export { PoolConfig };
+export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData, IDatabase };
+export default class MariaDB extends MySQL {
+    constructor (
+        public readonly config: MySQLConfig = {}
+    ) {
+        super(config, DatabaseType.MARIADB);
     }
+}
 
-    return new Error(error.toString());
-};
+export { MariaDB };

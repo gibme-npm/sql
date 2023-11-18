@@ -18,7 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Column, DatabaseType, ForeignKey, ForeignKeyConstraint, Query, QueryMetaData, QueryResult } from './types';
+import {
+    Column,
+    DatabaseType,
+    ForeignKey,
+    ForeignKeyConstraint,
+    make_error,
+    Query,
+    QueryMetaData,
+    QueryResult
+} from './types';
 import { Pool, PoolClient, PoolConfig } from 'pg';
 import Database, { IDatabase } from './database';
 
@@ -234,7 +243,7 @@ export default class Postgres extends Database {
             if (!error.toString()
                 .toLowerCase()
                 .includes('already been released')) {
-                throw new Error(error);
+                throw make_error(error);
             }
         }
     }
@@ -262,10 +271,6 @@ export default class Postgres extends Database {
         query = this.transformQuery(query);
 
         const result = await connection.query(query, values);
-
-        if (!(connection instanceof Pool)) {
-            connection.release();
-        }
 
         return [result.rows, {
             changedRows: result.rows.length === 0 ? result.rowCount || 0 : 0,
