@@ -66,6 +66,7 @@ export interface IDatabase {
         useTransaction?: boolean
     ) => Promise<QueryResult>;
     transaction: (queries: Query[]) => Promise<QueryResult[]>;
+    truncate: (tableOrTables: string | string[], useTransaction: boolean) => Promise<boolean>;
     prepareMultiInsert: (
         table: string,
         columns: string[],
@@ -333,6 +334,47 @@ export default abstract class Database extends EventEmitter implements IDatabase
         const queries = this.prepareMultiUpdate(table, primaryKey, columns, values);
 
         return this._executeMulti(queries, useTransaction);
+    }
+
+    /**
+     * Truncates the specified table(s)
+     *
+     * @param table
+     * @param useTransaction
+     */
+    public async truncate (
+        table: string | string[],
+        useTransaction = true
+    ): Promise<boolean> {
+        if (!Array.isArray(table)) {
+            table = [table];
+        }
+
+        const queries: Query[] = [];
+
+        switch (this.type) {
+            case DatabaseType.SQLITE:
+            case DatabaseType.LIBSQL:
+                table.forEach(table => queries.push({ query: `DELETE FROM ${this.escapeId(table)}` }));
+                break;
+            default:
+                table.forEach(table => queries.push({ query: `TRUNCATE TABLE ${this.escapeId(table)}` }));
+                break;
+        }
+
+        try {
+            if (useTransaction) {
+                await this.transaction(queries);
+            } else {
+                for (const query of queries) {
+                    await this.query(query);
+                }
+            }
+
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     protected abstract connection(): Promise<any>;

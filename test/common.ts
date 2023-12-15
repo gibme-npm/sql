@@ -223,5 +223,16 @@ export const runTests = (
 
             assert.equal(rows[0].column2, 5, 'Column2 value incorrect');
         });
+
+        it('Truncate', async () => {
+            const [pre_rows] = await db.query(`SELECT * FROM ${db.escapeId(test_table)}`);
+
+            await db.truncate(test_table);
+
+            const [post_rows] = await db.query(`SELECT * FROM ${db.escapeId(test_table)}`);
+
+            assert.notEqual(pre_rows.length, post_rows.length);
+            assert.equal(post_rows.length, 0);
+        });
     });
 };
