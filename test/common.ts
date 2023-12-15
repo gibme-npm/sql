@@ -29,6 +29,7 @@ config();
 const digest = (value: string): string => {
     return createHash('sha512')
         .update(value)
+        .update((new Date()).getTime().toString())
         .digest()
         .toString('hex')
         .substring(0, 10);
@@ -49,6 +50,22 @@ export const runTests = (
         values.push([`test${i}`, i]);
     }
 
+    const confirm_exists = async (table: string) => {
+        const tables = await db.listTables();
+
+        assert.ok(tables.includes(table), `Table ${table} does not exist`);
+    };
+
+    const confirm_exists_and_drop_table = async (table: string) => {
+        await confirm_exists(table);
+
+        await db.dropTable(table);
+
+        const post_tables = await db.listTables();
+
+        assert.ok(!post_tables.includes(table), `Table ${table} still exists`);
+    };
+
     describe('Tables', () => {
         it(`Create ${test_table}`, async () => {
             await db.createTable(test_table, [
@@ -62,7 +79,7 @@ export const runTests = (
                 }
             ], ['column1']);
 
-            await db.listTables();
+            await confirm_exists(test_table);
         });
 
         it(`Create ${third_table} with unique index`, async () => {
@@ -78,11 +95,7 @@ export const runTests = (
                 }
             ], ['column1']);
 
-            await db.listTables();
-
-            try {
-                await db.dropTable(third_table);
-            } catch {}
+            await confirm_exists_and_drop_table(third_table);
         });
 
         it(`Create ${fourth_table} with foreign key constraint`, async () => {
@@ -103,11 +116,7 @@ export const runTests = (
                 }
             ], ['column1']);
 
-            await db.listTables();
-
-            try {
-                await db.dropTable(fourth_table);
-            } catch {}
+            await confirm_exists_and_drop_table(fourth_table);
         });
 
         it(`Create ${fifth_table} with no primary key`, async () => {
@@ -128,11 +137,7 @@ export const runTests = (
                 }
             ]);
 
-            await db.listTables();
-
-            try {
-                await db.dropTable(fifth_table);
-            } catch {}
+            await confirm_exists_and_drop_table(fifth_table);
         });
 
         it('List', async () => {
@@ -153,19 +158,7 @@ export const runTests = (
                 }
             ], ['column1']);
 
-            {
-                const tables = await db.listTables();
-
-                assert.equal(tables.includes(second_table), true, `${second_table} not found`);
-            }
-
-            await db.dropTable(second_table);
-
-            {
-                const tables = await db.listTables();
-
-                assert.equal(tables.includes(second_table), false, `${second_table} found`);
-            }
+            await confirm_exists_and_drop_table(second_table);
         });
     });
 
