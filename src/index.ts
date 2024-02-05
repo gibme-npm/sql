@@ -71,6 +71,7 @@ export const createConnection = (
                 password: process.env.SQL_PASSWORD,
                 database: process.env.SQL_DATABASE,
                 ssl: process.env.SQL_SSL === 'true',
+                rejectUnauthorized: false,
                 ...options as any
             });
         case DatabaseType.LIBSQL:

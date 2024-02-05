@@ -49,9 +49,22 @@ export default class Postgres extends Database {
         this.config.port ??= 5432;
         this.config.user ??= '';
         this.config.rejectUnauthorized ??= false;
-        this.config.ssl ??= {
-            rejectUnauthorized: this.config.rejectUnauthorized
-        };
+
+        if (typeof this.config.ssl === 'boolean') {
+            this.config.ssl = {
+                rejectUnauthorized: this.config.rejectUnauthorized
+            };
+        } if (typeof this.config.ssl === 'object') {
+            this.config.ssl = {
+                ...this.config.ssl,
+                rejectUnauthorized: this.config.rejectUnauthorized
+            };
+        } else {
+            this.config.ssl = {
+                rejectUnauthorized: this.config.rejectUnauthorized
+            };
+        }
+
         this.pool = new Pool(this.config);
 
         this.pool.on('connect', client => this.emit('connect', client));
