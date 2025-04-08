@@ -1,6 +1,6 @@
 {
   "name": "@gibme/sql",
-  "version": "3.1.7",
+  "version": "3.1.8",
   "description": "A simple helper/wrapper for common DBMS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -61,7 +61,7 @@
   },
   "homepage": "https://gibme-npm.github.io/sql/",
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "engineStrict": true,
   "author": {
@@ -70,12 +70,12 @@
   },
   "dependencies": {
     "@libsql/client": "^0.4.0",
-    "@types/mysql": "^2.15.26",
-    "@types/pg": "^8.11.10",
+    "@types/mysql": "^2.15.27",
+    "@types/pg": "^8.11.11",
     "@types/pg-format": "^1.0.5",
-    "@types/sqlite3": "^3.1.11",
+    "@types/sqlite3": "^5.1.0",
     "mysql": "^2.18.1",
-    "pg": "^8.13.1",
+    "pg": "^8.14.1",
     "pg-format": "^1.0.4",
     "sqlite3": "^5.1.7"
   },
