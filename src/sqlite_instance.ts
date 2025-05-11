@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2016-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,38 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Database } from 'sqlite3';
+import { Database as SQLiteDatabase } from 'sqlite3';
 import { EventEmitter } from 'events';
-import { make_error, Query, QueryResult } from './types';
-
-export enum DatabaseOpenMode {
-    READONLY = 0x00000001,
-    READWRITE = 0x00000002,
-    CREATE = 0x00000004,
-    DELETEONCLOSE = 0x00000008,
-    EXCLUSIVE = 0x00000010,
-    AUTOPROXY = 0x00000020,
-    URI = 0x00000040,
-    MEMORY = 0x00000080,
-    MAIN_DB = 0x00000100,
-    TEMP_DB = 0x00000200,
-    TRANSIENT_DB = 0x00000400,
-    MAIN_JOURNAL = 0x00000800,
-    TEMP_JOURNAL = 0x00001000,
-    SUB_JOURNAL = 0x00002000,
-    SUPER_JOURNAL = 0x00004000,
-    NO_MUTEX = 0x00008000,
-    FULL_MUTEX = 0x00010000,
-    SHAREDCACHE = 0x00020000,
-    PRIVATECACHE = 0x00040000,
-    WAL = 0x00080000,
-    NOFOLLOW = 0x01000000,
-    EXRESCODE = 0x02000000
-}
-
-export type OpenMode = number;
-
-export type SQLiteDatabase = Database;
+import Database from './database';
 
 /** @ignore */
 const pragmaFunctionCalls = [
@@ -67,34 +38,17 @@ const pragmaFunctionCalls = [
 ];
 
 /** @ignore */
-const sleep = async (timeout: number) => new Promise(resolve => setTimeout(resolve, timeout));
+const sleep = async (timeout: number) =>
+    new Promise(resolve => setTimeout(resolve, timeout));
 
-/** @ignore */
-interface Callback<Type = any> {
-    callback: (error: Error | undefined, results?: QueryResult<Type>[]) => void;
-}
-
-/** @ignore */
-enum QueueEntryType {
-    TRANSACTION,
-    ALL,
-    RUN
-}
-
-/** @ignore */
-interface QueueEntry<Type = any> extends Callback<Type> {
-    type: QueueEntryType;
-    queries: Query[];
-}
-
-export default class SQLiteInstance extends EventEmitter {
-    private statementQueue: QueueEntry[] = [];
+export class SQLiteInstance extends EventEmitter {
     private stopping = false;
 
     protected constructor (
         public readonly id: string,
         private readonly database: SQLiteDatabase,
-        private readonly queueScanInterval = 10
+        private readonly queueScanInterval = 10,
+        private statementQueue: SQLiteInstance.Query.Entry[] = []
     ) {
         super();
 
@@ -123,21 +77,21 @@ export default class SQLiteInstance extends EventEmitter {
 
                     try {
                         switch (entry.type) {
-                            case QueueEntryType.TRANSACTION: {
+                            case SQLiteInstance.Query.Type.TRANSACTION: {
                                 const results = await this._transaction(entry.queries);
 
                                 entry.callback(undefined, results);
 
                                 break;
                             }
-                            case QueueEntryType.ALL: {
+                            case SQLiteInstance.Query.Type.ALL: {
                                 const result = await this._all(entry.queries[0]);
 
                                 entry.callback(undefined, [result]);
 
                                 break;
                             }
-                            case QueueEntryType.RUN: {
+                            case SQLiteInstance.Query.Type.RUN: {
                                 const result = await this._run(entry.queries[0]);
 
                                 entry.callback(undefined, [result]);
@@ -169,7 +123,9 @@ export default class SQLiteInstance extends EventEmitter {
     public static async load (
         id: string,
         filename: string,
-        mode: OpenMode = DatabaseOpenMode.CREATE | DatabaseOpenMode.READWRITE | DatabaseOpenMode.FULL_MUTEX,
+        mode: SQLiteInstance.OpenMode = SQLiteInstance.DB.OpenMode.CREATE |
+            SQLiteInstance.DB.OpenMode.READWRITE |
+            SQLiteInstance.DB.OpenMode.FULL_MUTEX,
         queueScanInterval = 10
     ): Promise<SQLiteInstance> {
         const db = await SQLiteInstance.open(filename, mode);
@@ -186,10 +142,12 @@ export default class SQLiteInstance extends EventEmitter {
      */
     private static async open (
         filename: string,
-        mode: OpenMode = DatabaseOpenMode.CREATE | DatabaseOpenMode.READWRITE | DatabaseOpenMode.FULL_MUTEX
+        mode: SQLiteInstance.OpenMode = SQLiteInstance.DB.OpenMode.CREATE |
+            SQLiteInstance.DB.OpenMode.READWRITE |
+            SQLiteInstance.DB.OpenMode.FULL_MUTEX
     ): Promise<SQLiteDatabase> {
         return new Promise((resolve, reject) => {
-            const database: SQLiteDatabase = new Database(filename, mode, error => {
+            const database: SQLiteDatabase = new SQLiteDatabase(filename, mode, error => {
                 if (error) {
                     return reject(error);
                 }
@@ -296,9 +254,9 @@ export default class SQLiteInstance extends EventEmitter {
      * @param values
      */
     public async query<RecordType = any> (
-        query: string | Query,
+        query: string | Database.Query,
         ...values: any[]
-    ): Promise<QueryResult<RecordType>> {
+    ): Promise<Database.Query.Result<RecordType>> {
         return new Promise((resolve, reject) => {
             if (typeof query === 'object') {
                 if (query.values) {
@@ -314,7 +272,7 @@ export default class SQLiteInstance extends EventEmitter {
                         query,
                         values
                     }],
-                    type: QueueEntryType.ALL,
+                    type: SQLiteInstance.Query.Type.ALL,
                     callback: (error: Error | undefined, results) => {
                         if (error) {
                             return reject(error);
@@ -333,7 +291,7 @@ export default class SQLiteInstance extends EventEmitter {
                         query,
                         values
                     }],
-                    type: QueueEntryType.RUN,
+                    type: SQLiteInstance.Query.Type.RUN,
                     callback: (error: Error | undefined, results) => {
                         if (error) {
                             return reject(error);
@@ -356,12 +314,12 @@ export default class SQLiteInstance extends EventEmitter {
      * @param queries
      */
     public async transaction<RecordType = any> (
-        queries: Query[]
-    ): Promise<QueryResult<RecordType>[]> {
+        queries: Database.Query[]
+    ): Promise<Database.Query.Result<RecordType>[]> {
         return new Promise((resolve, reject) => {
             this.statementQueue.push({
                 queries,
-                type: QueueEntryType.TRANSACTION,
+                type: SQLiteInstance.Query.Type.TRANSACTION,
                 callback: (error: Error | undefined, result) => {
                     if (error) {
                         return reject(error);
@@ -384,8 +342,8 @@ export default class SQLiteInstance extends EventEmitter {
      * @protected
      */
     private async _all<RecordType = any> (
-        query: Query
-    ): Promise<QueryResult<RecordType>> {
+        query: Database.Query
+    ): Promise<Database.Query.Result<RecordType>> {
         return new Promise((resolve, reject) => {
             this.database.all(query.query, query.values, function (error: Error | null, rows: any[]) {
                 if (error) {
@@ -412,8 +370,8 @@ export default class SQLiteInstance extends EventEmitter {
      * @protected
      */
     private async _run<RecordType = any> (
-        query: Query
-    ): Promise<QueryResult<RecordType>> {
+        query: Database.Query
+    ): Promise<Database.Query.Result<RecordType>> {
         return new Promise((resolve, reject) => {
             this.database.run(query.query, query.values, function (error: Error | null) {
                 if (error) {
@@ -441,12 +399,12 @@ export default class SQLiteInstance extends EventEmitter {
      * @protected
      */
     private async _transaction<RecordType = any> (
-        queries: Query[]
-    ): Promise<QueryResult<RecordType>[]> {
+        queries: Database.Query[]
+    ): Promise<Database.Query.Result<RecordType>[]> {
         try {
             await this.database.run('BEGIN');
 
-            const results: QueryResult<RecordType>[] = [];
+            const results: Database.Query.Result<RecordType>[] = [];
 
             for (const query of queries) {
                 try {
@@ -457,7 +415,11 @@ export default class SQLiteInstance extends EventEmitter {
                     }
                 } catch (error: any) {
                     if (!query.noError) {
-                        throw make_error(error);
+                        if (error instanceof Error) {
+                            throw error;
+                        }
+
+                        throw new Error(error.toString());
                     }
                 }
             }
@@ -472,3 +434,53 @@ export default class SQLiteInstance extends EventEmitter {
         }
     }
 }
+
+export namespace SQLiteInstance {
+    export type OpenMode = number;
+
+    export namespace DB {
+        export enum OpenMode {
+            READONLY = 0x00000001,
+            READWRITE = 0x00000002,
+            CREATE = 0x00000004,
+            DELETEONCLOSE = 0x00000008,
+            EXCLUSIVE = 0x00000010,
+            AUTOPROXY = 0x00000020,
+            URI = 0x00000040,
+            MEMORY = 0x00000080,
+            MAIN_DB = 0x00000100,
+            TEMP_DB = 0x00000200,
+            TRANSIENT_DB = 0x00000400,
+            MAIN_JOURNAL = 0x00000800,
+            TEMP_JOURNAL = 0x00001000,
+            SUB_JOURNAL = 0x00002000,
+            SUPER_JOURNAL = 0x00004000,
+            NO_MUTEX = 0x00008000,
+            FULL_MUTEX = 0x00010000,
+            SHAREDCACHE = 0x00020000,
+            PRIVATECACHE = 0x00040000,
+            WAL = 0x00080000,
+            NOFOLLOW = 0x01000000,
+            EXRESCODE = 0x02000000
+        }
+    }
+
+    export type ExecutionCallBack<Type = any> = {
+        callback: (error: Error | undefined, results?: Database.Query.Result<Type>[]) => void;
+    }
+
+    export namespace Query {
+        export enum Type {
+            TRANSACTION,
+            ALL,
+            RUN
+        }
+
+        export type Entry<Type = any> = ExecutionCallBack<Type> & {
+            type: Type;
+            queries: Database.Query[];
+        }
+    }
+}
+
+export default SQLiteInstance;

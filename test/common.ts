@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2016-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,10 +19,10 @@
 // SOFTWARE.
 
 import { describe, it } from 'mocha';
-import * as assert from 'assert';
+import assert from 'assert';
 import { config } from 'dotenv';
 import { createHash } from 'crypto';
-import { Database, ForeignKeyConstraint } from '../src';
+import { Database } from '../src';
 
 config();
 
@@ -106,8 +106,8 @@ export const runTests = (
                     foreignKey: {
                         table: test_table,
                         column: 'column1',
-                        onDelete: ForeignKeyConstraint.CASCADE,
-                        onUpdate: ForeignKeyConstraint.CASCADE
+                        onDelete: Database.Table.ForeignKeyConstraint.CASCADE,
+                        onUpdate: Database.Table.ForeignKeyConstraint.CASCADE
                     }
                 },
                 {
@@ -127,8 +127,8 @@ export const runTests = (
                     foreignKey: {
                         table: test_table,
                         column: 'column1',
-                        onDelete: ForeignKeyConstraint.CASCADE,
-                        onUpdate: ForeignKeyConstraint.CASCADE
+                        onDelete: Database.Table.ForeignKeyConstraint.CASCADE,
+                        onUpdate: Database.Table.ForeignKeyConstraint.CASCADE
                     }
                 },
                 {

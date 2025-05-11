@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2016-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { after, describe } from 'mocha';
-import { Database, DatabaseType, LibSQL, MySQL, Postgres, SQLite, MariaDB } from '../src';
+import { Database, LibSQL, MySQL, Postgres, SQLite, MariaDB } from '../src';
 import { runTests, test_table } from './common';
 import { config } from 'dotenv';
 import { resolve } from 'path';
@@ -70,7 +70,7 @@ for (const storage of engines) {
 
             await storage.close();
 
-            if (storage.type === DatabaseType.SQLITE) {
+            if (storage.type === Database.Type.SQLITE) {
                 try {
                     await unlink(test_db);
                 } catch {}

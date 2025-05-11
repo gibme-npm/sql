@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2016-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,23 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import {
-    Column,
-    DatabaseType,
-    ForeignKey,
-    ForeignKeyConstraint,
-    make_error,
-    Query,
-    QueryMetaData,
-    QueryResult
-} from './types';
-import { Pool, PoolClient, PoolConfig } from 'pg';
-import Database, { IDatabase } from './database';
+import { Pool, PoolClient, PoolConfig as PGPoolConfig } from 'pg';
+import Database from './database';
 
-export { PoolConfig };
-export { QueryMetaData, Query, QueryResult, ForeignKey, ForeignKeyConstraint, Column, IDatabase };
+export { Database };
 
-export default class Postgres extends Database {
+export class Postgres extends Database {
     public readonly pool: Pool;
 
     /**
@@ -42,8 +31,8 @@ export default class Postgres extends Database {
      *
      * @param config
      */
-    constructor (public readonly config: PoolConfig & { rejectUnauthorized?: boolean } = {}) {
-        super(DatabaseType.POSTGRES);
+    constructor (public readonly config: Postgres.Config = {}) {
+        super(Database.Type.POSTGRES);
 
         this.config.host ??= '127.0.0.1';
         this.config.port ??= 5432;
@@ -74,8 +63,8 @@ export default class Postgres extends Database {
             this.emit('error', error, client));
     }
 
-    public static get type (): DatabaseType {
-        return DatabaseType.POSTGRES;
+    public static get type (): Database.Type {
+        return Database.Type.POSTGRES;
     }
 
     public on(event: 'connect', listener: (client: PoolClient) => void): this;
@@ -145,9 +134,9 @@ export default class Postgres extends Database {
      * @param values
      */
     public async query<RecordType = any> (
-        query: string | Query,
+        query: string | Postgres.Query,
         ...values: any[]
-    ): Promise<QueryResult<RecordType>> {
+    ): Promise<Postgres.Query.Result<RecordType>> {
         return this._query(query, values);
     }
 
@@ -157,14 +146,14 @@ export default class Postgres extends Database {
      * @param queries
      */
     public async transaction<RecordType = any> (
-        queries: Query[]
-    ): Promise<QueryResult<RecordType>[]> {
+        queries: Postgres.Query[]
+    ): Promise<Postgres.Query.Result<RecordType>[]> {
         const connection = await this.connection();
 
         try {
             await this.beginTransaction(connection);
 
-            const results: QueryResult<RecordType>[] = [];
+            const results: Postgres.Query.Result<RecordType>[] = [];
 
             for (const query of queries) {
                 try {
@@ -256,7 +245,7 @@ export default class Postgres extends Database {
             if (!error.toString()
                 .toLowerCase()
                 .includes('already been released')) {
-                throw make_error(error);
+                throw this.make_error(error);
             }
         }
     }
@@ -269,10 +258,10 @@ export default class Postgres extends Database {
      * @param connection
      */
     private async _query<RecordType = any> (
-        query: string | Query,
+        query: string | Postgres.Query,
         values: any[] = [],
         connection: Pool | PoolClient = this.pool
-    ): Promise<QueryResult<RecordType>> {
+    ): Promise<Postgres.Query.Result<RecordType>> {
         if (typeof query === 'object') {
             if (query.values) {
                 values = query.values;
@@ -296,4 +285,14 @@ export default class Postgres extends Database {
     }
 }
 
-export { Postgres };
+export namespace Postgres {
+    export type Config = PGPoolConfig & { rejectUnauthorized?: boolean };
+
+    export type Query = Database.Query;
+
+    export namespace Query {
+        export type Result<Type = any> = Database.Query.Result<Type>;
+    }
+}
+
+export default Postgres;

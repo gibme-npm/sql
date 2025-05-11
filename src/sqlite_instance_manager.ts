@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2016-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
 
 import { createHash } from 'crypto';
 import { resolve } from 'path';
-import SQLiteInstance, { DatabaseOpenMode, OpenMode } from './sqlite_instance';
+import SQLiteInstance from './sqlite_instance';
 
 /** @ignore */
 const digest = (value: string): string => {
@@ -30,7 +30,7 @@ const digest = (value: string): string => {
         .toString('hex');
 };
 
-export { SQLiteInstance, DatabaseOpenMode, OpenMode };
+export { SQLiteInstance };
 
 export default class SQLiteInstanceManager {
     private static instances: Map<string, SQLiteInstance> = new Map<string, SQLiteInstance>();
@@ -45,7 +45,9 @@ export default class SQLiteInstanceManager {
      */
     public static async get (
         filename: string,
-        mode: OpenMode = DatabaseOpenMode.CREATE | DatabaseOpenMode.READWRITE | DatabaseOpenMode.FULL_MUTEX,
+        mode: SQLiteInstance.OpenMode = SQLiteInstance.DB.OpenMode.CREATE |
+            SQLiteInstance.DB.OpenMode.READWRITE |
+            SQLiteInstance.DB.OpenMode.FULL_MUTEX,
         queueScanInterval = 10
     ): Promise<SQLiteInstance> {
         // resolve the relative path to the absolute path

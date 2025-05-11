@@ -1,4 +1,4 @@
-// Copyright (c) 2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2023-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,59 +18,41 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Client, Config, createClient, InStatement, Transaction } from '@libsql/client';
-import {
-    Column,
-    DatabaseType,
-    ForeignKey,
-    ForeignKeyConstraint,
-    make_error,
-    Query,
-    QueryMetaData,
-    QueryResult
-} from './types';
+import { Client, Config as LibSQLConfig, createClient, InStatement, Transaction } from '@libsql/client';
 import { resolve } from 'path';
-import Database, { IDatabase } from './database';
+import Database from './database';
 
-export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData, IDatabase };
+export { Database };
 
-export type DBPath = `file:${string}` | `ws://${string}` | `wss://${string}` |
-    `http://${string}` | `https://${string}` | `libsql://${string}`;
-
-export type DatabaseConfig = Config & { url: DBPath };
-
-export default class LibSQL extends Database {
-    public readonly config: DatabaseConfig;
+export class LibSQL extends Database {
     private readonly database: Client;
 
-    constructor (config: Partial<DatabaseConfig> = {}) {
-        super(DatabaseType.LIBSQL);
+    constructor (private readonly config: Partial<LibSQL.Config> = {}) {
+        super(Database.Type.LIBSQL);
 
-        if (!config.url) {
+        if (!this.config.url) {
             throw new Error('Must specify database filename or URL');
         }
 
         // makes sure that the url is an absolute path
-        if (config.url.startsWith('file:')) {
-            const path = resolve(process.cwd(), config.url.slice(5));
+        if (this.config.url.startsWith('file:')) {
+            const path = resolve(process.cwd(), this.config.url.slice(5));
 
-            config.url = `file:${path}`;
+            this.config.url = `file:${path}`;
         }
 
-        this.config = config as DatabaseConfig;
-
-        this.database = createClient(this.config as Config);
+        this.database = createClient(this.config as LibSQLConfig);
     }
 
-    public static get type (): DatabaseType {
-        return DatabaseType.LIBSQL;
+    public static get type (): Database.Type {
+        return Database.Type.LIBSQL;
     }
 
     /**
      * Returns if transactions are enabled
      */
     public get transactionsEnabled (): boolean {
-        return !this.config.url.startsWith('http');
+        return !this.config.url?.startsWith('http');
     }
 
     /**
@@ -117,9 +99,9 @@ export default class LibSQL extends Database {
      * @param values
      */
     public async query<RecordType = any> (
-        query: string | Query,
+        query: string | LibSQL.Query,
         ...values: any[]
-    ): Promise<QueryResult<RecordType>> {
+    ): Promise<LibSQL.Query.Result<RecordType>> {
         if (typeof query === 'object') {
             if (query.values) {
                 values = query.values;
@@ -158,9 +140,9 @@ export default class LibSQL extends Database {
      * @protected
      */
     public async transaction<RecordType = any> (
-        queries: Query[]
-    ): Promise<QueryResult<RecordType>[]> {
-        const results: QueryResult<RecordType>[] = [];
+        queries: LibSQL.Query[]
+    ): Promise<LibSQL.Query.Result<RecordType>[]> {
+        const results: LibSQL.Query.Result<RecordType>[] = [];
 
         if (this.transactionsEnabled) {
             const connection = await this.beginTransaction();
@@ -181,7 +163,7 @@ export default class LibSQL extends Database {
                         ]);
                     } catch (error: any) {
                         if (!query.noError) {
-                            throw make_error(error);
+                            throw this.make_error(error);
                         }
                     }
                 }
@@ -262,7 +244,7 @@ export default class LibSQL extends Database {
      * @param query
      * @private
      */
-    private toInStmt (query: Query): InStatement {
+    private toInStmt (query: LibSQL.Query): InStatement {
         return {
             sql: query.query,
             args: query.values ?? []
@@ -270,4 +252,17 @@ export default class LibSQL extends Database {
     }
 }
 
-export { LibSQL };
+export namespace LibSQL {
+    export type Path = `file:${string}` | `ws://${string}` | `wss://${string}` |
+        `http://${string}` | `https://${string}` | `libsql://${string}`;
+
+    export type Config = LibSQLConfig & { url: Path };
+
+    export type Query = Database.Query;
+
+    export namespace Query {
+        export type Result<Type = any> = Database.Query.Result<Type>;
+    }
+}
+
+export default LibSQL;

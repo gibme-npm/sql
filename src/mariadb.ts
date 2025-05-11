@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2016-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,27 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import {
-    MySQL,
-    PoolConfig,
-    Column,
-    ForeignKey,
-    ForeignKeyConstraint,
-    Query,
-    QueryResult,
-    QueryMetaData,
-    IDatabase,
-    MySQLConfig
-} from './mysql';
-import { DatabaseType } from './types';
+import MySQL from './mysql';
+import Database from './database';
 
-export { PoolConfig };
-export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData, IDatabase };
+export { Database };
+
 export default class MariaDB extends MySQL {
     constructor (
-        public readonly config: MySQLConfig = {}
+        public readonly config: MySQL.Config = {}
     ) {
-        super(config, DatabaseType.MARIADB);
+        super(config, Database.Type.MARIADB);
     }
 }
 

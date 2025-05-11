@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2016-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,28 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { createPool, Pool, PoolConfig, PoolConnection } from 'mysql';
-import {
-    Column,
-    DatabaseType,
-    ForeignKey,
-    ForeignKeyConstraint,
-    make_error,
-    Query,
-    QueryMetaData,
-    QueryResult
-} from './types';
-import Database, { IDatabase } from './database';
+import { createPool, Pool, PoolConfig as MySQLPoolConfig, PoolConnection } from 'mysql';
+import Database from './database';
 
-export { PoolConfig };
-export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData, IDatabase };
+export { Database };
 
-/**
- * Expanded MySQL Configuration
- */
-export type MySQLConfig = PoolConfig & { rejectUnauthorized?: boolean; useSSL?: boolean };
-
-export default class MySQL extends Database {
+export class MySQL extends Database {
     public readonly pool: Pool;
 
     /**
@@ -49,8 +33,8 @@ export default class MySQL extends Database {
      * @param override_type
      */
     constructor (
-        public readonly config: MySQLConfig = {},
-        override_type: DatabaseType.MYSQL | DatabaseType.MARIADB = DatabaseType.MYSQL
+        public readonly config: MySQL.Config = {},
+        override_type: Database.Type.MYSQL | Database.Type.MARIADB = Database.Type.MYSQL
     ) {
         super(override_type, 'ENGINE=InnoDB PACK_KEYS=1 ROW_FORMAT=COMPRESSED');
 
@@ -76,8 +60,8 @@ export default class MySQL extends Database {
         this.pool.on('release', connection => this.emit('release', connection));
     }
 
-    public static get type (): DatabaseType {
-        return DatabaseType.MYSQL;
+    public static get type (): Database.Type {
+        return Database.Type.MYSQL;
     }
 
     public on(event: 'error', listener: (error: Error) => void): this;
@@ -150,9 +134,9 @@ export default class MySQL extends Database {
      * @param values
      */
     public async query<RecordType = any> (
-        query: string | Query,
+        query: string | MySQL.Query,
         ...values: any[]
-    ): Promise<QueryResult<RecordType>> {
+    ): Promise<MySQL.Query.Result<RecordType>> {
         return this._query(query, values);
     }
 
@@ -162,21 +146,21 @@ export default class MySQL extends Database {
      * @param queries
      */
     public async transaction<RecordType = any> (
-        queries: Query[]
-    ): Promise<QueryResult<RecordType>[]> {
+        queries: MySQL.Query[]
+    ): Promise<MySQL.Query.Result<RecordType>[]> {
         const connection = await this.connection();
 
         try {
             await this.beginTransaction(connection);
 
-            const results: QueryResult<RecordType>[] = [];
+            const results: MySQL.Query.Result<RecordType>[] = [];
 
             for (const query of queries) {
                 try {
                     results.push(await this._query(query.query, query.values, connection));
                 } catch (error: any) {
                     if (!query.noError) {
-                        throw make_error(error);
+                        throw this.make_error(error);
                     }
                 }
             }
@@ -272,10 +256,10 @@ export default class MySQL extends Database {
      * @param connection
      */
     private async _query<RecordType = any> (
-        query: string | Query,
+        query: string | MySQL.Query,
         values: any[] = [],
         connection: Pool | PoolConnection = this.pool
-    ): Promise<QueryResult<RecordType>> {
+    ): Promise<MySQL.Query.Result<RecordType>> {
         return new Promise((resolve, reject) => {
             if (typeof query === 'object') {
                 if (query.values) {
@@ -304,4 +288,14 @@ export default class MySQL extends Database {
     }
 }
 
-export { MySQL };
+export namespace MySQL {
+    export type Config = MySQLPoolConfig & { rejectUnauthorized?: boolean; useSSL?: boolean };
+
+    export type Query = Database.Query;
+
+    export namespace Query {
+        export type Result<Type = any> = Database.Query.Result<Type>;
+    }
+}
+
+export default MySQL;

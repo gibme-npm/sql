@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2016-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,81 +19,12 @@
 // SOFTWARE.
 
 import { EventEmitter } from 'events';
-import { Column, DatabaseType, IndexType, Query, QueryResult } from './types';
 import pgformat from 'pg-format';
 import { escape as mysqlEscape, escapeId as mysqlEscapeId } from 'mysql';
 
-/**
- * The core interface for all database types
- */
-export interface IDatabase {
-    type: DatabaseType;
-    typeName: string;
-    escape: (value: string) => string;
-    escapeId: (id: string) => string;
-    tableOptions: string;
-    close: () => Promise<void>;
-    createTable?: (
-        name: string,
-        fields: Column[],
-        primaryKey: string[],
-        tableOptions?: string,
-        useTransaction?: boolean
-    ) => Promise<void>;
-    createIndex: (
-        table: string,
-        fields: string[],
-        type: IndexType
-    ) => Promise<void>;
-    use: (database: string) => Promise<IDatabase>;
-    listTables: (database?: string) => Promise<string[]>;
-    dropTable: (tables: string | string[]) => Promise<QueryResult[]>;
-    query: <RecordType = any>(
-        query: string | Query,
-        ...values: any[]
-    ) => Promise<QueryResult<RecordType>>;
-    multiInsert: (
-        table: string,
-        columns: string[],
-        values: any[][],
-        useTransaction?: boolean
-    ) => Promise<QueryResult>;
-    multiUpdate: (
-        table: string,
-        primaryKey: string[],
-        columns: string[],
-        values: any[][],
-        useTransaction?: boolean
-    ) => Promise<QueryResult>;
-    transaction: (queries: Query[]) => Promise<QueryResult[]>;
-    truncate: (tableOrTables: string | string[], useTransaction: boolean) => Promise<boolean>;
-    prepareMultiInsert: (
-        table: string,
-        columns: string[],
-        values: any[][]
-    ) => Query[];
-    prepareMultiUpdate: (
-        table: string,
-        primaryKey: string[],
-        columns: string[],
-        values: any[][]
-    ) => Query[];
-    prepareCreateIndex: (
-        table: string,
-        fields: string[],
-        type: IndexType
-    ) => Query[];
-    prepareCreateTable: (
-        name: string,
-        fields: Column[],
-        primaryKey: string[],
-        tableOptions?: string
-    ) => Query[];
-}
-
-export default abstract class Database extends EventEmitter implements IDatabase {
+export abstract class Database extends EventEmitter {
     protected constructor (
-        public readonly type: DatabaseType,
+        public readonly type: Database.Type,
         public tableOptions = ''
     ) {
         super();
@@ -101,15 +32,15 @@ export default abstract class Database extends EventEmitter implements IDatabase
 
     public get typeName (): string {
         switch (this.type) {
-            case DatabaseType.LIBSQL:
+            case Database.Type.LIBSQL:
                 return 'LibSQL';
-            case DatabaseType.MYSQL:
+            case Database.Type.MYSQL:
                 return 'MySQL';
-            case DatabaseType.POSTGRES:
+            case Database.Type.POSTGRES:
                 return 'Postgres';
-            case DatabaseType.SQLITE:
+            case Database.Type.SQLITE:
                 return 'SQLite';
-            case DatabaseType.MARIADB:
+            case Database.Type.MARIADB:
                 return 'MariaDB';
         }
     }
@@ -121,12 +52,12 @@ export default abstract class Database extends EventEmitter implements IDatabase
      *
      * @param tables
      */
-    public async dropTable (tables: string | string[]): Promise<QueryResult[]> {
+    public async dropTable (tables: string | string[]): Promise<Database.Query.Result[]> {
         if (!Array.isArray(tables)) {
             tables = [tables];
         }
 
-        const queries: Query[] = [];
+        const queries: Database.Query[] = [];
 
         for (const table of tables) {
             queries.push({
@@ -143,7 +74,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @param value
      */
     public escape (value: string): string {
-        if (this.type === DatabaseType.POSTGRES) {
+        if (this.type === Database.Type.POSTGRES) {
             return pgformat('%L', value);
         }
 
@@ -156,7 +87,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @param id
      */
     public escapeId (id: string): string {
-        if (this.type === DatabaseType.POSTGRES) {
+        if (this.type === Database.Type.POSTGRES) {
             return pgformat('%I', id);
         }
 
@@ -166,13 +97,13 @@ export default abstract class Database extends EventEmitter implements IDatabase
     abstract listTables(database?: string): Promise<string[]>;
 
     abstract query<RecordType>(
-        query: string | Query,
+        query: string | Database.Query,
         ...values: any[]
-    ): Promise<QueryResult<RecordType>>;
+    ): Promise<Database.Query.Result<RecordType>>;
 
-    abstract transaction<RecordType = any>(queries: Query[]): Promise<QueryResult<RecordType>[]>;
+    abstract transaction<RecordType = any>(queries: Database.Query[]): Promise<Database.Query.Result<RecordType>[]>;
 
-    abstract use(database: string): Promise<IDatabase>;
+    abstract use(database: string): Promise<Database>;
 
     /**
      * Prepares a query to perform a multi-insert statement which is far
@@ -186,7 +117,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
         table: string,
         columns: string[] = [],
         values: any[][]
-    ): Query[] {
+    ): Database.Query[] {
         return this._prepareMultiInsert(this.type, table, columns, values);
     }
 
@@ -206,7 +137,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
         primaryKey: string[],
         columns: string[],
         values: any[][]
-    ): Query[] {
+    ): Database.Query[] {
         return this._prepareMultiUpdate(this.type, table, primaryKey, columns, values);
     }
 
@@ -219,8 +150,8 @@ export default abstract class Database extends EventEmitter implements IDatabase
     public prepareCreateIndex (
         table: string,
         fields: string[],
-        type: IndexType = IndexType.NONE
-    ): Query[] {
+        type: Database.Table.IndexType = Database.Table.IndexType.NONE
+    ): Database.Query[] {
         return [this._prepareCreateIndex(this.type, table, fields, type)];
     }
 
@@ -233,10 +164,10 @@ export default abstract class Database extends EventEmitter implements IDatabase
      */
     public prepareCreateTable (
         name: string,
-        fields: Column[],
+        fields: Database.Table.Column[],
         primaryKey: string[] = [],
         tableOptions = this.tableOptions
-    ): Query[] {
+    ): Database.Query[] {
         return this._prepareCreateTable(this.type, name, fields, primaryKey, tableOptions);
     }
 
@@ -252,7 +183,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
      */
     public async createTable (
         name: string,
-        fields: Column[],
+        fields: Database.Table.Column[],
         primaryKey: string[] = [],
         tableOptions = this.tableOptions,
         useTransaction = true
@@ -279,7 +210,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
     public async createIndex (
         table: string,
         fields: string[],
-        type: IndexType = IndexType.NONE,
+        type: Database.Table.IndexType = Database.Table.IndexType.NONE,
         useTransaction = true
     ): Promise<void> {
         const queries = this.prepareCreateIndex(table, fields, type);
@@ -307,7 +238,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
         columns: string[] = [],
         values: any[][],
         useTransaction = true
-    ): Promise<QueryResult> {
+    ): Promise<Database.Query.Result> {
         const queries = this.prepareMultiInsert(table, columns, values);
 
         return this._executeMulti(queries, useTransaction);
@@ -330,7 +261,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
         columns: string[],
         values: any[][],
         useTransaction = true
-    ): Promise<QueryResult> {
+    ): Promise<Database.Query.Result> {
         const queries = this.prepareMultiUpdate(table, primaryKey, columns, values);
 
         return this._executeMulti(queries, useTransaction);
@@ -350,11 +281,11 @@ export default abstract class Database extends EventEmitter implements IDatabase
             table = [table];
         }
 
-        const queries: Query[] = [];
+        const queries: Database.Query[] = [];
 
         switch (this.type) {
-            case DatabaseType.SQLITE:
-            case DatabaseType.LIBSQL:
+            case Database.Type.SQLITE:
+            case Database.Type.LIBSQL:
                 table.forEach(table => queries.push({ query: `DELETE FROM ${this.escapeId(table)}` }));
                 break;
             default:
@@ -394,7 +325,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
      */
     protected _prepareConstraints (
         table: string,
-        fields: Column[]
+        fields: Database.Table.Column[]
     ): string[] {
         table = table.trim();
 
@@ -444,15 +375,15 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @protected
      */
     protected _prepareCreateIndex (
-        databaseType: DatabaseType,
+        databaseType: Database.Type,
         table: string,
         fields: string[],
-        type: IndexType = IndexType.NONE
-    ): Query {
+        type: Database.Table.IndexType = Database.Table.IndexType.NONE
+    ): Database.Query {
         table = table.trim();
         fields = fields.map(field => field.trim());
 
-        const can_if_not_exists = databaseType !== DatabaseType.MYSQL;
+        const can_if_not_exists = databaseType !== Database.Type.MYSQL;
         const if_not_exists = can_if_not_exists ? ' IF NOT EXISTS' : '';
 
         return {
@@ -472,11 +403,11 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @protected
      */
     protected _prepareCreateIndexes (
-        databaseType: DatabaseType,
+        databaseType: Database.Type,
         table: string,
-        fields: Column[],
-        type: IndexType = IndexType.NONE
-    ): Query[] {
+        fields: Database.Table.Column[],
+        type: Database.Table.IndexType = Database.Table.IndexType.NONE
+    ): Database.Query[] {
         table = table.trim();
 
         return fields.filter(column => column.unique === true)
@@ -494,12 +425,12 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @param tableOptions
      */
     protected _prepareCreateTable (
-        databaseType: DatabaseType,
+        databaseType: Database.Type,
         table: string,
-        columns: Column[],
+        columns: Database.Table.Column[],
         primaryKey: string[] = [],
         tableOptions: string = ''
-    ): Query[] {
+    ): Database.Query[] {
         table = table.trim();
         primaryKey = primaryKey.map(column => this.escapeId(column));
 
@@ -525,7 +456,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
             .join(' ')
             .trim();
 
-        const unique = this._prepareCreateIndexes(databaseType, table, columns, IndexType.UNIQUE);
+        const unique = this._prepareCreateIndexes(databaseType, table, columns, Database.Table.IndexType.UNIQUE);
 
         return [
             {
@@ -543,7 +474,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @protected
      */
     protected _prepareColumns (
-        fields: Column[]
+        fields: Database.Table.Column[]
     ): [string[], any[]] {
         const values: any[] = [];
         const columns: string[] = [];
@@ -574,11 +505,11 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @param values
      */
     protected _prepareMultiInsert (
-        databaseType: DatabaseType,
+        databaseType: Database.Type,
         table: string,
         columns: string[] = [],
         values: any[][]
-    ): Query[] {
+    ): Database.Query[] {
         const toPlaceholders = (arr: any[]): string => {
             return arr.map(() => '?')
                 .join(',');
@@ -599,8 +530,8 @@ export default abstract class Database extends EventEmitter implements IDatabase
         const _columns = columns.length !== 0 ? ` (${columns.map(elem => this.escapeId(elem)).join(',')})` : '';
 
         // SQLite handles things a bit differently
-        if (databaseType === DatabaseType.SQLITE || databaseType === DatabaseType.LIBSQL) {
-            const queries: Query[] = [];
+        if (databaseType === Database.Type.SQLITE || databaseType === Database.Type.LIBSQL) {
+            const queries: Database.Query[] = [];
 
             for (const _values of values) {
                 queries.push({
@@ -640,12 +571,12 @@ export default abstract class Database extends EventEmitter implements IDatabase
      * @param values
      */
     protected _prepareMultiUpdate (
-        databaseType: DatabaseType,
+        databaseType: Database.Type,
         table: string,
         primaryKey: string[],
         columns: string[],
         values: any[][]
-    ): Query[] {
+    ): Database.Query[] {
         if (columns.length === 0) {
             throw new Error('Must specify columns for multi-update');
         }
@@ -658,7 +589,7 @@ export default abstract class Database extends EventEmitter implements IDatabase
 
         const updates: string[] = [];
 
-        if (databaseType === DatabaseType.MYSQL || databaseType === DatabaseType.MARIADB) {
+        if (databaseType === Database.Type.MYSQL || databaseType === Database.Type.MARIADB) {
             for (const column of columns) {
                 if (primaryKey.includes(column)) {
                     continue;
@@ -691,16 +622,16 @@ export default abstract class Database extends EventEmitter implements IDatabase
     }
 
     /**
-     * Executes multiple statements and returns their results in a single QueryResult
+     * Executes multiple statements and returns their results in a single Database.Query.Result
      *
      * @param queries
      * @param useTransaction
      * @protected
      */
     protected async _executeMulti (
-        queries: Query[],
+        queries: Database.Query[],
         useTransaction: boolean
-    ): Promise<QueryResult> {
+    ): Promise<Database.Query.Result> {
         if (useTransaction) {
             const results = await this.transaction(queries);
 
@@ -743,4 +674,73 @@ export default abstract class Database extends EventEmitter implements IDatabase
             ];
         }
     }
+
+    /** @ignore */
+    protected make_error (error: any): Error {
+        if (error instanceof Error) {
+            return error;
+        }
+
+        return new Error(error.toString());
+    };
 }
+
+export namespace Database {
+    export enum Type {
+        MYSQL,
+            POSTGRES,
+            SQLITE,
+            LIBSQL,
+            MARIADB
+    }
+
+    export namespace Table {
+        export enum IndexType {
+            NONE = '',
+            UNIQUE = 'UNIQUE'
+        }
+
+        export enum ForeignKeyConstraint {
+            RESTRICT = 'RESTRICT',
+            CASCADE = 'CASCADE',
+            NULL = 'SET NULL',
+            DEFAULT = 'SET DEFAULT',
+            NA = 'NO ACTION'
+        }
+
+        export type ForeignKey = {
+            table: string;
+            column: string;
+            onUpdate?: ForeignKeyConstraint;
+            onDelete?: ForeignKeyConstraint;
+        }
+
+        export type Column = {
+            name: string;
+            type: string;
+            nullable?: boolean;
+            foreignKey?: ForeignKey;
+            unique?: boolean;
+            default?: string | number | boolean;
+        }
+    }
+
+    export type Query = {
+        query: string;
+        values?: any[];
+        noError?: boolean;
+    }
+
+    export namespace Query {
+        export type MetaData = {
+            changedRows: number;
+            affectedRows: number;
+            insertId?: number;
+            length: number;
+        }
+
+        export type Result<RecordType = any> = [RecordType[], Query.MetaData, Query];
+    }
+}
+
+export default Database;

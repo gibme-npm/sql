@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2016-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,30 +18,27 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import Postgres, { PoolConfig as PostgresPoolConfig } from './postgres';
-import MySQL, { PoolConfig as MySQLPoolConfig, MySQLConfig } from './mysql';
-import SQLite, { DatabaseConfig as SQLiteConfig } from './sqlite';
-import LibSQL, { DatabaseConfig as LibSQLConfig, DBPath as LibSQLDBPath } from './libsql';
-import Database, { IDatabase } from './database';
-import { config } from 'dotenv';
-import { DatabaseType } from './types';
+import Postgres from './postgres';
+import MySQL from './mysql';
+import SQLite from './sqlite';
+import LibSQL from './libsql';
+import Database from './database';
 import MariaDB from './mariadb';
-
-export * from './types';
+import { config } from 'dotenv';
 
 config();
 
 export const createConnection = (
-    database_type: DatabaseType = parseInt(process.env.SQL_TYPE || '2') || DatabaseType.SQLITE,
-    options: Partial<PostgresPoolConfig | MySQLPoolConfig | SQLiteConfig | LibSQLConfig> = {}
+    database_type: Database.Type = parseInt(process.env.SQL_TYPE || '2') || Database.Type.SQLITE,
+    options: Partial<Postgres.Config | MySQL.Config | SQLite.Config | LibSQL.Config> = {}
 ): Database => {
     switch (database_type) {
-        case DatabaseType.SQLITE:
+        case Database.Type.SQLITE:
             return new SQLite({
                 filename: process.env.SQL_FILENAME,
                 ...options as any
             });
-        case DatabaseType.MYSQL:
+        case Database.Type.MYSQL:
             return new MySQL({
                 host: process.env.SQL_HOST,
                 port: parseInt(process.env.SQL_PORT || '') || undefined,
@@ -52,7 +49,7 @@ export const createConnection = (
                 useSSL: process.env.SQL_SSL === 'true',
                 ...options as any
             });
-        case DatabaseType.MARIADB:
+        case Database.Type.MARIADB:
             return new MariaDB({
                 host: process.env.SQL_HOST,
                 port: parseInt(process.env.SQL_PORT || '') || undefined,
@@ -63,7 +60,7 @@ export const createConnection = (
                 useSSL: process.env.SQL_SSL === 'true',
                 ...options as any
             });
-        case DatabaseType.POSTGRES:
+        case Database.Type.POSTGRES:
             return new Postgres({
                 host: process.env.SQL_HOST,
                 port: parseInt(process.env.SQL_PORT || '') || undefined,
@@ -74,7 +71,7 @@ export const createConnection = (
                 rejectUnauthorized: false,
                 ...options as any
             });
-        case DatabaseType.LIBSQL:
+        case Database.Type.LIBSQL:
             return new LibSQL({
                 url: process.env.SQL_URL,
                 tls: process.env.SQL_SSL === 'true',
@@ -96,6 +93,5 @@ export default {
 };
 
 export {
-    Postgres, MySQL, MariaDB, SQLite, Database, PostgresPoolConfig,
-    MySQLPoolConfig, SQLiteConfig, LibSQL, LibSQLConfig, LibSQLDBPath, IDatabase, MySQLConfig
+    Postgres, MySQL, MariaDB, SQLite, Database, LibSQL
 };

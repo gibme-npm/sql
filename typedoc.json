@@ -6,7 +6,9 @@
     "./src/mysql.ts",
     "./src/postgres.ts",
     "./src/sqlite.ts",
-    "./src/types.ts"
+    "./src/mariadb.ts",
+    "./src/libsql.ts",
+    "./src/sqlite_instance.ts"
   ],
   "disableSources": true,
   "hideGenerator": true,

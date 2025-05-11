@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2016-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,31 +19,13 @@
 // SOFTWARE.
 
 import sqlite3 from 'sqlite3';
-import { Column, DatabaseType, ForeignKey, ForeignKeyConstraint, Query, QueryMetaData, QueryResult } from './types';
 import { resolve } from 'path';
-import SQLiteInstanceManager, { DatabaseOpenMode, OpenMode, SQLiteInstance } from './sqlite_instance_manager';
-import Database, { IDatabase } from './database';
+import SQLiteInstanceManager, { SQLiteInstance } from './sqlite_instance_manager';
+import Database from './database';
 
-export { Column, ForeignKey, ForeignKeyConstraint, Query, QueryResult, QueryMetaData, IDatabase };
-export { OpenMode, DatabaseOpenMode };
+export { Database };
 
-export interface DatabaseConfig {
-    filename: ':memory:' | string;
-    mode: OpenMode;
-    foreignKeys: boolean;
-    WALmode: boolean;
-    queueScanInterval: number;
-}
-
-export default class SQLite extends Database {
-    public readonly config: DatabaseConfig = {
-        filename: ':memory:',
-        mode: DatabaseOpenMode.READWRITE | DatabaseOpenMode.CREATE,
-        foreignKeys: true,
-        WALmode: true,
-        queueScanInterval: 10
-    };
-
+export class SQLite extends Database {
     private database?: SQLiteInstance;
 
     /**
@@ -52,27 +34,27 @@ export default class SQLite extends Database {
      * @param config
      */
     constructor (
-        config: Partial<DatabaseConfig> = {}
+        public readonly config: Partial<SQLite.Config> = {}
     ) {
-        super(DatabaseType.SQLITE);
+        super(Database.Type.SQLITE);
 
-        this.config.filename = config.filename || ':memory:';
-        this.config.mode = config.mode || DatabaseOpenMode.READWRITE |
-            DatabaseOpenMode.CREATE |
-            DatabaseOpenMode.FULL_MUTEX;
-        this.config.foreignKeys = config.foreignKeys ??= true;
-        this.config.WALmode = config.WALmode ??= true;
-        this.config.queueScanInterval = config.queueScanInterval ??= 10;
+        this.config.filename ??= ':memory:';
+        this.config.mode ??= SQLiteInstance.DB.OpenMode.READWRITE |
+            SQLiteInstance.DB.OpenMode.CREATE |
+            SQLiteInstance.DB.OpenMode.FULL_MUTEX;
+        this.config.foreignKeys ??= true;
+        this.config.WALmode ??= true;
+        this.config.queueScanInterval ??= 10;
 
         if (this.config.filename.toLowerCase() === ':memory:') {
-            this.config.mode |= DatabaseOpenMode.MEMORY;
+            this.config.mode |= SQLiteInstance.DB.OpenMode.MEMORY;
         } else {
             this.config.filename = resolve(this.config.filename);
         }
     }
 
-    public static get type (): DatabaseType {
-        return DatabaseType.SQLITE;
+    public static get type (): Database.Type {
+        return Database.Type.SQLITE;
     }
 
     /**
@@ -172,9 +154,9 @@ export default class SQLite extends Database {
      * @param values
      */
     public async query<RecordType = any> (
-        query: string | Query,
+        query: string | SQLite.Query,
         ...values: any[]
-    ): Promise<QueryResult<RecordType>> {
+    ): Promise<SQLite.Query.Result<RecordType>> {
         const instance = await this.getInstance();
 
         return instance.query<RecordType>(query, ...values);
@@ -186,8 +168,8 @@ export default class SQLite extends Database {
      * @param queries
      */
     public async transaction<RecordType = any> (
-        queries: Query[]
-    ): Promise<QueryResult<RecordType>[]> {
+        queries: SQLite.Query[]
+    ): Promise<SQLite.Query.Result<RecordType>[]> {
         const instance = await this.getInstance();
 
         return instance.transaction<RecordType>(queries);
@@ -246,7 +228,7 @@ export default class SQLite extends Database {
         }
 
         this.database = await SQLiteInstanceManager.get(
-            this.config.filename, this.config.mode, this.config.queueScanInterval);
+            this.config.filename ?? ':memory:', this.config.mode, this.config.queueScanInterval);
 
         this.database.on('error', error => this.emit('error', error));
         this.database.on('trace', sql => this.emit('trace', sql));
@@ -269,4 +251,20 @@ export default class SQLite extends Database {
     }
 }
 
-export { SQLite };
+export namespace SQLite {
+    export type Config = {
+        filename: ':memory:' | string;
+        mode: SQLiteInstance.OpenMode;
+        foreignKeys: boolean;
+        WALmode: boolean;
+        queueScanInterval: number;
+    }
+
+    export type Query = Database.Query;
+
+    export namespace Query {
+        export type Result<Type = any> = Database.Query.Result<Type>;
+    }
+}
+
+export default SQLite;
