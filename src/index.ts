@@ -21,7 +21,6 @@
 import Postgres from './postgres';
 import MySQL from './mysql';
 import SQLite from './sqlite';
-import LibSQL from './libsql';
 import Database from './database';
 import MariaDB from './mariadb';
 import { config } from 'dotenv';
@@ -30,7 +29,7 @@ config();
 
 export const createConnection = (
     database_type: Database.Type = parseInt(process.env.SQL_TYPE || '2') || Database.Type.SQLITE,
-    options: Partial<Postgres.Config | MySQL.Config | SQLite.Config | LibSQL.Config> = {}
+    options: Partial<Postgres.Config | MySQL.Config | SQLite.Config> = {}
 ): Database => {
     switch (database_type) {
         case Database.Type.SQLITE:
@@ -71,12 +70,6 @@ export const createConnection = (
                 rejectUnauthorized: false,
                 ...options as any
             });
-        case Database.Type.LIBSQL:
-            return new LibSQL({
-                url: process.env.SQL_URL,
-                tls: process.env.SQL_SSL === 'true',
-                ...options as any
-            });
         default:
             throw new Error('Invalid database type specified');
     }
@@ -86,12 +79,11 @@ export default {
     Postgres,
     MySQL,
     SQLite,
-    LibSQL,
     MariaDB,
     Database,
     createConnection
 };
 
 export {
-    Postgres, MySQL, MariaDB, SQLite, Database, LibSQL
+    Postgres, MySQL, MariaDB, SQLite, Database
 };

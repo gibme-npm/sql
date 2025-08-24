@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { after, describe } from 'mocha';
-import { Database, LibSQL, MySQL, Postgres, SQLite, MariaDB } from '../src';
+import { Database, MySQL, Postgres, SQLite, MariaDB } from '../src';
 import { runTests, test_table } from './common';
 import { config } from 'dotenv';
 import { resolve } from 'path';
@@ -31,7 +31,6 @@ config();
 
 const engines: Database[] = [
     new SQLite({ filename: test_db }),
-    new LibSQL({ url: `file:${test_db}.lib` }),
     new MySQL({
         host: process.env.MYSQL_HOST,
         port: process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT) : undefined,

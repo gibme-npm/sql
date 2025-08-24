@@ -32,8 +32,6 @@ export abstract class Database extends EventEmitter {
 
     public get typeName (): string {
         switch (this.type) {
-            case Database.Type.LIBSQL:
-                return 'LibSQL';
             case Database.Type.MYSQL:
                 return 'MySQL';
             case Database.Type.POSTGRES:
@@ -285,7 +283,6 @@ export abstract class Database extends EventEmitter {
 
         switch (this.type) {
             case Database.Type.SQLITE:
-            case Database.Type.LIBSQL:
                 table.forEach(table => queries.push({ query: `DELETE FROM ${this.escapeId(table)}` }));
                 break;
             default:
@@ -530,7 +527,7 @@ export abstract class Database extends EventEmitter {
         const _columns = columns.length !== 0 ? ` (${columns.map(elem => this.escapeId(elem)).join(',')})` : '';
 
         // SQLite handles things a bit differently
-        if (databaseType === Database.Type.SQLITE || databaseType === Database.Type.LIBSQL) {
+        if (databaseType === Database.Type.SQLITE) {
             const queries: Database.Query[] = [];
 
             for (const _values of values) {
@@ -687,11 +684,10 @@ export abstract class Database extends EventEmitter {
 
 export namespace Database {
     export enum Type {
-        MYSQL,
-            POSTGRES,
-            SQLITE,
-            LIBSQL,
-            MARIADB
+        MYSQL = 0,
+        POSTGRES = 1,
+        SQLITE = 2,
+        MARIADB = 4
     }
 
     export namespace Table {
