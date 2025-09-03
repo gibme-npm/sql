@@ -20,7 +20,7 @@
 
 import { EventEmitter } from 'events';
 import pgformat from 'pg-format';
-import { escape as mysqlEscape, escapeId as mysqlEscapeId } from 'mysql';
+import { escape as mysqlEscape, escapeId as mysqlEscapeId } from 'sqlstring';
 
 export abstract class Database extends EventEmitter {
     protected constructor (

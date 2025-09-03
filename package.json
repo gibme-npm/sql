@@ -65,13 +65,14 @@
     "email": "brandonlehmann@gmail.com"
   },
   "dependencies": {
-    "@types/mysql": "^2.15.27",
     "@types/pg": "^8.15.5",
     "@types/pg-format": "^1.0.5",
-    "mysql": "^2.18.1",
+    "@types/sqlstring": "^2.3.2",
+    "mariadb": "^3.4.5",
     "pg": "^8.16.3",
     "pg-format": "^1.0.4",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "sqlstring": "^2.3.3"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

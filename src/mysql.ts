@@ -18,10 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { createPool, Pool, PoolConfig as MySQLPoolConfig, PoolConnection } from 'mysql';
+import { createPool, Pool, PoolConfig as MySQLPoolConfig, PoolConnection } from 'mariadb';
 import Database from './database';
 
 export { Database };
+
+type OkPacket = {
+    affectedRows: number;
+    insertId: number;
+    changedRows?: number;
+}
+
+/** @ignore */
+const isOkPacket = (x: unknown): x is OkPacket => {
+    return !!x && typeof x === 'object' &&
+        'affectedRows' in x &&
+        'insertId' in x &&
+        'warningStatus' in x;
+};
 
 export class MySQL extends Database {
     public readonly pool: Pool;
@@ -44,6 +58,7 @@ export class MySQL extends Database {
         this.config.connectTimeout ??= 30_000;
         this.config.useSSL ??= false;
         this.config.rejectUnauthorized ??= false;
+        this.config.multipleStatements = false;
 
         if (this.config.useSSL) {
             this.config.ssl ||= {
@@ -53,7 +68,6 @@ export class MySQL extends Database {
 
         this.pool = createPool(this.config);
 
-        this.pool.on('error', error => this.emit('error', error));
         this.pool.on('acquire', connection => this.emit('acquire', connection));
         this.pool.on('connection', connection => this.emit('connection', connection));
         this.pool.on('enqueue', () => this.emit('enqueue'));
@@ -82,15 +96,7 @@ export class MySQL extends Database {
      * Closes all the pooled connections
      */
     public async close (): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this.pool.end(error => {
-                if (error) {
-                    return reject(error);
-                }
-
-                return resolve();
-            });
-        });
+        return this.pool.end();
     }
 
     /**
@@ -183,15 +189,7 @@ export class MySQL extends Database {
      * @protected
      */
     protected async connection (): Promise<PoolConnection> {
-        return new Promise((resolve, reject) => {
-            this.pool.getConnection((error, connection) => {
-                if (error) {
-                    return reject(error);
-                }
-
-                return resolve(connection);
-            });
-        });
+        return this.pool.getConnection();
     }
 
     /**
@@ -201,15 +199,7 @@ export class MySQL extends Database {
      * @protected
      */
     protected async beginTransaction (connection: PoolConnection): Promise<void> {
-        return new Promise((resolve, reject) => {
-            connection.beginTransaction(error => {
-                if (error) {
-                    return reject(error);
-                }
-
-                return resolve();
-            });
-        });
+        return connection.beginTransaction();
     }
 
     /**
@@ -219,15 +209,7 @@ export class MySQL extends Database {
      * @protected
      */
     protected async commitTransaction (connection: PoolConnection): Promise<void> {
-        return new Promise((resolve, reject) => {
-            connection.commit(error => {
-                if (error) {
-                    return reject(error);
-                }
-
-                return resolve();
-            });
-        });
+        return connection.commit();
     }
 
     /**
@@ -237,15 +219,7 @@ export class MySQL extends Database {
      * @protected
      */
     protected async rollbackTransaction (connection: PoolConnection): Promise<void> {
-        return new Promise((resolve, reject) => {
-            connection.rollback(error => {
-                if (error) {
-                    return reject(error);
-                }
-
-                return resolve();
-            });
-        });
+        return connection.rollback();
     }
 
     /**
@@ -260,31 +234,33 @@ export class MySQL extends Database {
         values: any[] = [],
         connection: Pool | PoolConnection = this.pool
     ): Promise<MySQL.Query.Result<RecordType>> {
-        return new Promise((resolve, reject) => {
-            if (typeof query === 'object') {
-                if (query.values) {
-                    values = query.values;
-                }
-
-                query = query.query;
+        if (typeof query === 'object') {
+            if (query.values) {
+                values = query.values;
             }
 
-            connection.query(query, values, (error, results) => {
-                if (error) {
-                    return reject(error);
-                }
+            query = query.query;
+        }
 
-                return resolve([results, {
-                    changedRows: results.changedRows || 0,
-                    affectedRows: results.affectedRows || 0,
-                    insertId: results.insertId || undefined,
-                    length: results.length || 0
-                }, {
-                    query: query as string,
-                    values
-                }]);
-            });
-        });
+        const result = await connection.query(query, values);
+
+        if (isOkPacket(result)) {
+            return [[], {
+                changedRows: result.changedRows ?? 0,
+                affectedRows: result.affectedRows ?? 0,
+                insertId: result.insertId ?? 0,
+                length: 0
+            }, { query, values }];
+        }
+
+        const results = result as RecordType[];
+
+        return [results, {
+            changedRows: 0,
+            affectedRows: 0,
+            insertId: undefined,
+            length: results.length
+        }, { query, values }];
     }
 }
 
