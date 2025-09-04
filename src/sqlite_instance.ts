@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Database as SQLiteDatabase } from 'sqlite3';
-import { EventEmitter } from 'events';
+import Sqlite3, { Database as SQLiteDatabase } from 'better-sqlite3';
 import Database from './database';
 
 /** @ignore */
@@ -37,169 +36,82 @@ const pragmaFunctionCalls = [
     'optimize'
 ];
 
-/** @ignore */
-const sleep = async (timeout: number) =>
-    new Promise(resolve => setTimeout(resolve, timeout));
-
-export class SQLiteInstance extends EventEmitter {
-    private stopping = false;
-
+export class SQLiteInstance {
+    // eslint-disable-next-line no-useless-constructor
     protected constructor (
-        public readonly id: string,
-        private readonly database: SQLiteDatabase,
-        private readonly queueScanInterval = 10,
-        private statementQueue: SQLiteInstance.Query.Entry[] = []
+        private readonly database: SQLiteDatabase
     ) {
-        super();
+    }
 
-        this.database.on('error', error => this.emit('error', error));
-        this.database.on('trace', sql => this.emit('trace', sql));
-        this.database.on('profile', (sql, time) =>
-            this.emit('trace', sql, time));
-        this.database.on('change', (type, database, table, rowid) =>
-            this.emit('change', type, database, table, rowid));
-        this.database.on('open', () => this.emit('open'));
-        this.database.on('close', () => this.emit('close'));
+    /**
+     * Returns if the database is currently open
+     */
+    public get open (): boolean {
+        return this.database.open;
+    }
 
-        /**
-         * This implements a queuing system inside this module to try to help
-         * to prevent data race conditions whereby a write request may not fully
-         * commit to the underlying database before a read request comes looking for it
-         */
-        (async () => {
-            while (!this.stopping) {
-                while (this.statementQueue.length > 0) {
-                    const entry = this.statementQueue.shift();
+    /**
+     * Returns if the database is currently in a transaction
+     */
+    public get inTransaction (): boolean {
+        return this.database.inTransaction;
+    }
 
-                    if (!entry) {
-                        break;
-                    }
+    /**
+     * Returns the filename of the database
+     */
+    public get name (): string {
+        return this.database.name;
+    }
 
-                    try {
-                        switch (entry.type) {
-                            case SQLiteInstance.Query.Type.TRANSACTION: {
-                                const results = await this._transaction(entry.queries);
+    /**
+     * Returns whether this database is in-memory only
+     */
+    public get memory (): boolean {
+        return this.database.memory;
+    }
 
-                                entry.callback(undefined, results);
-
-                                break;
-                            }
-                            case SQLiteInstance.Query.Type.ALL: {
-                                const result = await this._all(entry.queries[0]);
-
-                                entry.callback(undefined, [result]);
-
-                                break;
-                            }
-                            case SQLiteInstance.Query.Type.RUN: {
-                                const result = await this._run(entry.queries[0]);
-
-                                entry.callback(undefined, [result]);
-
-                                break;
-                            }
-                            default:
-                                entry.callback(new Error('Unknown query entry type'), []);
-                                break;
-                        }
-                    } catch (error: any) {
-                        entry.callback(error);
-                    }
-                }
-
-                await sleep(this.queueScanInterval);
-            }
-        })();
+    /**
+     * Returns whether this database is in readonly mode
+     */
+    public get readonly (): boolean {
+        return this.database.readonly;
     }
 
     /**
      * Loads a new instance of a SQLite database or loads from memory if already opened
      *
-     * @param id
      * @param filename
-     * @param mode
-     * @param queueScanInterval
+     * @param readonly
      */
     public static async load (
-        id: string,
         filename: string,
-        mode: SQLiteInstance.OpenMode = SQLiteInstance.DB.OpenMode.CREATE |
-            SQLiteInstance.DB.OpenMode.READWRITE |
-            SQLiteInstance.DB.OpenMode.FULL_MUTEX,
-        queueScanInterval = 10
+        readonly = false
     ): Promise<SQLiteInstance> {
-        const db = await SQLiteInstance.open(filename, mode);
+        const db = await SQLiteInstance.open(filename, readonly);
 
-        return new SQLiteInstance(id, db, queueScanInterval);
+        return new SQLiteInstance(db);
     }
 
     /**
      * Opens a SQLite database
      *
      * @param filename
-     * @param mode
+     * @param readonly
      * @private
      */
     private static async open (
         filename: string,
-        mode: SQLiteInstance.OpenMode = SQLiteInstance.DB.OpenMode.CREATE |
-            SQLiteInstance.DB.OpenMode.READWRITE |
-            SQLiteInstance.DB.OpenMode.FULL_MUTEX
+        readonly = false
     ): Promise<SQLiteDatabase> {
-        return new Promise((resolve, reject) => {
-            const database: SQLiteDatabase = new SQLiteDatabase(filename, mode, error => {
-                if (error) {
-                    return reject(error);
-                }
-
-                return resolve(database);
-            });
-        });
-    }
-
-    public on(event: 'error', listener: (error: Error) => void): this;
-
-    public on(event: 'trace', listener: (sql: string) => void): this;
-
-    public on(event: 'profile', listener: (sql: string, time: number) => void): this;
-
-    public on(event: 'change', listener: (type: string, database: string, table: string, rowid: number) => void): this;
-
-    public on(event: 'open', listener: () => void): this;
-
-    public on(event: 'close', listener: () => void): this;
-
-    public on (event: any, listener: (...args: any[]) => void): this {
-        return super.on(event, listener);
+        return new Sqlite3(filename, { readonly });
     }
 
     /**
      * Closes the database
      */
     public async close (): Promise<void> {
-        this.stopping = true;
-
-        /**
-         *  Don't close hte database connection while there is still
-         *  stuff waiting to get done
-         */
-        while (this.statementQueue.length !== 0) {
-            await sleep(this.queueScanInterval);
-        }
-
-        return new Promise((resolve, reject) => {
-            if (!this.database) {
-                return resolve();
-            }
-
-            this.database.close(error => {
-                if (error) {
-                    return reject(error);
-                }
-
-                return resolve();
-            });
-        });
+        this.database.close();
     }
 
     /**
@@ -213,7 +125,7 @@ export class SQLiteInstance extends EventEmitter {
          * Execute this call via the low-level calling system outside the normal
          * queuing provided so that we do not mistakenly block the connection
          */
-        const [rows] = await this._all<{ [key: string]: unknown }>({
+        const [rows] = this._all<{ [key: string]: unknown }>({
             query: `PRAGMA ${option}`
         });
 
@@ -244,7 +156,7 @@ export class SQLiteInstance extends EventEmitter {
          * Execute this call via the low-level calling system outside the normal
          * queuing provided so that we do not mistakenly block the connection
          */
-        await this._run({ query: `PRAGMA ${option}${value}` });
+        this._run({ query: `PRAGMA ${option}${value}` });
     }
 
     /**
@@ -257,55 +169,25 @@ export class SQLiteInstance extends EventEmitter {
         query: string | Database.Query,
         ...values: any[]
     ): Promise<Database.Query.Result<RecordType>> {
-        return new Promise((resolve, reject) => {
-            if (typeof query === 'object') {
-                if (query.values) {
-                    values = query.values;
-                }
-
-                query = query.query;
+        if (typeof query === 'object') {
+            if (query.values) {
+                values = query.values;
             }
 
-            if (query.toLowerCase().startsWith('select')) {
-                this.statementQueue.push({
-                    queries: [{
-                        query,
-                        values
-                    }],
-                    type: SQLiteInstance.Query.Type.ALL,
-                    callback: (error: Error | undefined, results) => {
-                        if (error) {
-                            return reject(error);
-                        }
+            query = query.query;
+        }
 
-                        if (!results || results.length !== 1) {
-                            return reject(new Error('Malformed result received'));
-                        }
-
-                        return resolve(results[0]);
-                    }
-                });
-            } else {
-                this.statementQueue.push({
-                    queries: [{
-                        query,
-                        values
-                    }],
-                    type: SQLiteInstance.Query.Type.RUN,
-                    callback: (error: Error | undefined, results) => {
-                        if (error) {
-                            return reject(error);
-                        }
-
-                        if (!results || results.length !== 1) {
-                            return reject(new Error('Malformed result received'));
-                        }
-
-                        return resolve(results[0]);
-                    }
-                });
-            }
-        });
+        if (query.toLowerCase().startsWith('select')) {
+            return this._all({
+                query,
+                values
+            });
+        } else {
+            return this._run({
+                query,
+                values
+            });
+        }
     }
 
     /**
@@ -316,23 +198,7 @@ export class SQLiteInstance extends EventEmitter {
     public async transaction<RecordType = any> (
         queries: Database.Query[]
     ): Promise<Database.Query.Result<RecordType>[]> {
-        return new Promise((resolve, reject) => {
-            this.statementQueue.push({
-                queries,
-                type: SQLiteInstance.Query.Type.TRANSACTION,
-                callback: (error: Error | undefined, result) => {
-                    if (error) {
-                        return reject(error);
-                    }
-
-                    if (!result) {
-                        return reject(new Error('Malformed result received'));
-                    }
-
-                    return resolve(result);
-                }
-            });
-        });
+        return this._transaction(queries);
     }
 
     /**
@@ -341,26 +207,22 @@ export class SQLiteInstance extends EventEmitter {
      * @param query
      * @protected
      */
-    private async _all<RecordType = any> (
+    private _all<RecordType = any> (
         query: Database.Query
-    ): Promise<Database.Query.Result<RecordType>> {
-        return new Promise((resolve, reject) => {
-            this.database.all(query.query, query.values, function (error: Error | null, rows: any[]) {
-                if (error) {
-                    return reject(error);
-                }
+    ): Database.Query.Result<RecordType> {
+        const stmt = this.database.prepare(query.query);
 
-                return resolve([
-                    rows,
-                    {
-                        changedRows: 0,
-                        affectedRows: 0,
-                        length: rows.length
-                    },
-                    query
-                ]);
-            });
-        });
+        const rows = stmt.all(...query.values ?? []) as RecordType[];
+
+        return [
+            rows,
+            {
+                changedRows: 0,
+                affectedRows: 0,
+                length: rows.length
+            },
+            query
+        ];
     }
 
     /**
@@ -369,27 +231,25 @@ export class SQLiteInstance extends EventEmitter {
      * @param query
      * @protected
      */
-    private async _run<RecordType = any> (
+    private _run<RecordType = any> (
         query: Database.Query
-    ): Promise<Database.Query.Result<RecordType>> {
-        return new Promise((resolve, reject) => {
-            this.database.run(query.query, query.values, function (error: Error | null) {
-                if (error) {
-                    return reject(error);
-                }
+    ): Database.Query.Result<RecordType> {
+        const stmt = this.database.prepare(query.query);
 
-                return resolve([
-                    [],
-                    {
-                        changedRows: this.changes || 0,
-                        affectedRows: this.changes || 0,
-                        insertId: this.lastID || 0,
-                        length: 0
-                    },
-                    query
-                ]);
-            });
-        });
+        const info = stmt.run(...query.values ?? []);
+
+        const insertId = parseInt(info.lastInsertRowid.toString() ?? '') || 0;
+
+        return [
+            [],
+            {
+                changedRows: info.changes ?? 0,
+                affectedRows: info.changes ?? 0,
+                insertId,
+                length: 0
+            },
+            query
+        ];
     }
 
     /**
@@ -398,89 +258,33 @@ export class SQLiteInstance extends EventEmitter {
      * @param queries
      * @protected
      */
-    private async _transaction<RecordType = any> (
+    private _transaction<RecordType = any> (
         queries: Database.Query[]
-    ): Promise<Database.Query.Result<RecordType>[]> {
-        try {
-            await this.database.run('BEGIN');
+    ): Database.Query.Result<RecordType>[] {
+        const results: Database.Query.Result<RecordType>[] = [];
 
-            const results: Database.Query.Result<RecordType>[] = [];
-
+        const tx = this.database.transaction(() => {
             for (const query of queries) {
-                try {
-                    if (query.query.toLowerCase().startsWith('select')) {
-                        results.push(await this._all(query));
-                    } else {
-                        results.push(await this._run(query));
-                    }
-                } catch (error: any) {
-                    if (!query.noError) {
-                        if (error instanceof Error) {
-                            throw error;
-                        }
-
-                        throw new Error(error.toString());
-                    }
+                if (query.query.toLowerCase().startsWith('select')) {
+                    results.push(this._all(query));
+                } else {
+                    results.push(this._run(query));
                 }
             }
+        });
 
-            await this.database.run('COMMIT');
-
-            return results;
+        try {
+            tx();
         } catch (error: any) {
-            await this.database.run('ROLLBACK');
+            if (queries.some(q => !q.noError)) {
+                if (error instanceof Error) {
+                    throw error;
+                }
 
-            throw error;
+                throw new Error(error.toString());
+            }
         }
+
+        return results;
     }
 }
-
-export namespace SQLiteInstance {
-    export type OpenMode = number;
-
-    export namespace DB {
-        export enum OpenMode {
-            READONLY = 0x00000001,
-            READWRITE = 0x00000002,
-            CREATE = 0x00000004,
-            DELETEONCLOSE = 0x00000008,
-            EXCLUSIVE = 0x00000010,
-            AUTOPROXY = 0x00000020,
-            URI = 0x00000040,
-            MEMORY = 0x00000080,
-            MAIN_DB = 0x00000100,
-            TEMP_DB = 0x00000200,
-            TRANSIENT_DB = 0x00000400,
-            MAIN_JOURNAL = 0x00000800,
-            TEMP_JOURNAL = 0x00001000,
-            SUB_JOURNAL = 0x00002000,
-            SUPER_JOURNAL = 0x00004000,
-            NO_MUTEX = 0x00008000,
-            FULL_MUTEX = 0x00010000,
-            SHAREDCACHE = 0x00020000,
-            PRIVATECACHE = 0x00040000,
-            WAL = 0x00080000,
-            NOFOLLOW = 0x01000000,
-            EXRESCODE = 0x02000000
-        }
-    }
-
-    export type ExecutionCallBack<Type = any> = {
-        callback: (error: Error | undefined, results?: Database.Query.Result<Type>[]) => void;
-    }
-
-    export namespace Query {
-        export enum Type {
-            TRANSACTION,
-            ALL,
-            RUN
-        }
-
-        export type Entry<Type = any> = ExecutionCallBack<Type> & {
-            type: Type;
-            queries: Database.Query[];
-        }
-    }
-}
-
-export default SQLiteInstance;

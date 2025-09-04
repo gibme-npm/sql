@@ -20,7 +20,7 @@
 
 import { createHash } from 'crypto';
 import { resolve } from 'path';
-import SQLiteInstance from './sqlite_instance';
+import { SQLiteInstance } from './sqlite_instance';
 
 /** @ignore */
 const digest = (value: string): string => {
@@ -32,7 +32,7 @@ const digest = (value: string): string => {
 
 export { SQLiteInstance };
 
-export default class SQLiteInstanceManager {
+export class SQLiteInstanceManager {
     private static instances: Map<string, SQLiteInstance> = new Map<string, SQLiteInstance>();
 
     /**
@@ -40,15 +40,11 @@ export default class SQLiteInstanceManager {
      * or, creates a new instance if one does not already exist
      *
      * @param filename
-     * @param mode
-     * @param queueScanInterval
+     * @param readonly
      */
     public static async get (
         filename: string,
-        mode: SQLiteInstance.OpenMode = SQLiteInstance.DB.OpenMode.CREATE |
-            SQLiteInstance.DB.OpenMode.READWRITE |
-            SQLiteInstance.DB.OpenMode.FULL_MUTEX,
-        queueScanInterval = 10
+        readonly = false
     ): Promise<SQLiteInstance> {
         // resolve the relative path to the absolute path
         filename = resolve(process.cwd(), filename);
@@ -63,7 +59,7 @@ export default class SQLiteInstanceManager {
             }
         }
 
-        const instance = await SQLiteInstance.load(id, filename, mode, queueScanInterval);
+        const instance = await SQLiteInstance.load(filename, readonly);
 
         SQLiteInstanceManager.instances.set(id, instance);
 

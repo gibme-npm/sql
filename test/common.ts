@@ -162,12 +162,16 @@ export const runTests = (
         });
     });
 
-    describe('Bulk Insert / Updates', () => {
+    describe('Bulk Insert / Updates', async () => {
         it('Bulk Insert', async () => {
-            return db.multiInsert(
+            await db.multiInsert(
                 test_table,
                 ['column1', 'column2'],
                 values);
+
+            const [rows] = await db.query(`SELECT * FROM ${db.escapeId(test_table)}`);
+
+            assert.equal(rows.length, values.length);
         });
 
         it('Bulk Update', async () => {

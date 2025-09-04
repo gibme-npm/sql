@@ -18,9 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import sqlite3 from 'sqlite3';
 import { resolve } from 'path';
-import SQLiteInstanceManager, { SQLiteInstance } from './sqlite_instance_manager';
+import { SQLiteInstance, SQLiteInstanceManager } from './sqlite_instance_manager';
 import Database from './database';
 
 export { Database };
@@ -39,46 +38,17 @@ export class SQLite extends Database {
         super(Database.Type.SQLITE);
 
         this.config.filename ??= ':memory:';
-        this.config.mode ??= SQLiteInstance.DB.OpenMode.READWRITE |
-            SQLiteInstance.DB.OpenMode.CREATE |
-            SQLiteInstance.DB.OpenMode.FULL_MUTEX;
+        this.config.readonly ??= false;
         this.config.foreignKeys ??= true;
         this.config.WALmode ??= true;
-        this.config.queueScanInterval ??= 10;
 
-        if (this.config.filename.toLowerCase() === ':memory:') {
-            this.config.mode |= SQLiteInstance.DB.OpenMode.MEMORY;
-        } else {
+        if (this.config.filename.toLowerCase() !== ':memory:') {
             this.config.filename = resolve(this.config.filename);
         }
     }
 
     public static get type (): Database.Type {
         return Database.Type.SQLITE;
-    }
-
-    /**
-     * Sets the execution mode to verbose and produces long stack traces.
-     * There is no way to reset this. See the wiki page on debugging SQLite for more information.
-     */
-    public static verbose () {
-        return sqlite3.verbose();
-    }
-
-    public on(event: 'error', listener: (error: Error) => void): this;
-
-    public on(event: 'trace', listener: (sql: string) => void): this;
-
-    public on(event: 'profile', listener: (sql: string, time: number) => void): this;
-
-    public on(event: 'change', listener: (type: string, database: string, table: string, rowid: number) => void): this;
-
-    public on(event: 'open', listener: () => void): this;
-
-    public on(event: 'close', listener: () => void): this;
-
-    public on (event: any, listener: (...args: any[]) => void): this {
-        return super.on(event, listener);
     }
 
     /**
@@ -228,16 +198,7 @@ export class SQLite extends Database {
         }
 
         this.database = await SQLiteInstanceManager.get(
-            this.config.filename ?? ':memory:', this.config.mode, this.config.queueScanInterval);
-
-        this.database.on('error', error => this.emit('error', error));
-        this.database.on('trace', sql => this.emit('trace', sql));
-        this.database.on('profile', (sql, time) =>
-            this.emit('trace', sql, time));
-        this.database.on('change', (type, database, table, rowid) =>
-            this.emit('change', type, database, table, rowid));
-        this.database.on('open', () => this.emit('open'));
-        this.database.on('close', () => this.emit('close'));
+            this.config.filename ?? ':memory:', this.config.readonly);
 
         if (this.config.WALmode) {
             await this.database.setPragma('journal_mode', 'WAL');
@@ -253,11 +214,26 @@ export class SQLite extends Database {
 
 export namespace SQLite {
     export type Config = {
+        /**
+         * The filename of the SQLite database
+         * @default `:memory:` - in-memory only
+         */
         filename: ':memory:' | string;
-        mode: SQLiteInstance.OpenMode;
+        /**
+         * Whether the database should be opened in read only mode
+         * @default false
+         */
+        readonly: boolean;
+        /**
+         * Whether the database uses foreign key relationships
+         * @default true
+         */
         foreignKeys: boolean;
+        /**
+         * Whether WAL journal mode is enabled by defailt
+         * @default true
+         */
         WALmode: boolean;
-        queueScanInterval: number;
     }
 
     export type Query = Database.Query;
