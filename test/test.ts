@@ -30,8 +30,11 @@ const test_db = resolve(`${process.cwd()}/${test_table}.sqlite3`);
 config();
 
 const engines: Database[] = [
-    new SQLite({ filename: test_db }),
-    new MySQL({
+    new SQLite({ filename: test_db })
+];
+
+if (process.env.MYSQL_HOST && process.env.MYSQL_USER && process.env.MYSQL_PASSWORD && process.env.MYSQL_DATABASE) {
+    engines.push(new MySQL({
         host: process.env.MYSQL_HOST,
         port: process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT) : undefined,
         user: process.env.MYSQL_USER,
@@ -39,8 +42,12 @@ const engines: Database[] = [
         database: process.env.MYSQL_DATABASE,
         useSSL: process.env.MYSQL_SSL === 'true',
         connectTimeout: 30_000
-    }),
-    new MariaDB({
+    }));
+}
+
+if (process.env.MARIADB_HOST && process.env.MARIADB_USER &&
+    process.env.MARIADB_PASSWORD && process.env.MARIADB_DATABASE) {
+    engines.push(new MariaDB({
         host: process.env.MARIADB_HOST,
         port: process.env.MARIADB_PORT ? parseInt(process.env.MARIADB_PORT) : undefined,
         user: process.env.MARIADB_USER,
@@ -48,15 +55,18 @@ const engines: Database[] = [
         database: process.env.MARIADB_DATABASE,
         useSSL: process.env.MARIADB_SSL === 'true',
         connectTimeout: 30_000
-    }),
-    new Postgres({
+    }));
+}
+
+if (process.env.PGSQL_HOST && process.env.PGSQL_USER && process.env.PGSQL_PASSWORD && process.env.PGSQL_DATABASE) {
+    engines.push(new Postgres({
         host: process.env.PGSQL_HOST,
         port: process.env.PGSQL_PORT ? parseInt(process.env.PGSQL_PORT) : undefined,
         user: process.env.PGSQL_USER,
         password: process.env.PGSQL_PASSWORD,
         database: process.env.PGSQL_DATABASE
-    })
-];
+    }));
+}
 
 for (const storage of engines) {
     describe(storage.typeName, async function () {
