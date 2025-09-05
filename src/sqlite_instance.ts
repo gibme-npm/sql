@@ -20,6 +20,7 @@
 
 import Sqlite3, { Database as SQLiteDatabase } from 'better-sqlite3';
 import Database from './database';
+import { Mutex } from 'async-mutex';
 
 /** @ignore */
 const pragmaFunctionCalls = [
@@ -37,6 +38,8 @@ const pragmaFunctionCalls = [
 ];
 
 export class SQLiteInstance {
+    private readonly mutex = new Mutex();
+
     // eslint-disable-next-line no-useless-constructor
     protected constructor (
         private readonly database: SQLiteDatabase
@@ -79,7 +82,7 @@ export class SQLiteInstance {
     }
 
     /**
-     * Loads a new instance of a SQLite database or loads from memory if already opened
+     * Loads a new instance of an SQLite database or loads from memory if already opened
      *
      * @param filename
      * @param readonly
@@ -125,7 +128,7 @@ export class SQLiteInstance {
          * Execute this call via the low-level calling system outside the normal
          * queuing provided so that we do not mistakenly block the connection
          */
-        const [rows] = this._all<{ [key: string]: unknown }>({
+        const [rows] = await this.allAsync<{ [key: string]: unknown }>({
             query: `PRAGMA ${option}`
         });
 
@@ -156,7 +159,7 @@ export class SQLiteInstance {
          * Execute this call via the low-level calling system outside the normal
          * queuing provided so that we do not mistakenly block the connection
          */
-        this._run({ query: `PRAGMA ${option}${value}` });
+        await this.runAsync({ query: `PRAGMA ${option}${value}` });
     }
 
     /**
@@ -178,12 +181,12 @@ export class SQLiteInstance {
         }
 
         if (query.toLowerCase().startsWith('select')) {
-            return this._all({
+            return this.allAsync({
                 query,
                 values
             });
         } else {
-            return this._run({
+            return this.runAsync({
                 query,
                 values
             });
@@ -202,12 +205,28 @@ export class SQLiteInstance {
     }
 
     /**
-     * Executes a low-level all call against the SQLite database connection
+     * Executes a low-level-all call against the SQLite database connection
+     * that is wrapped in a mutex to prevent multiple queries from being
+     * executed at the same time
      *
      * @param query
-     * @protected
+     * @private
      */
-    private _all<RecordType = any> (
+    private async allAsync<RecordType = any> (
+        query: Database.Query
+    ): Promise<Database.Query.Result<RecordType>> {
+        return this.mutex.runExclusive(() => {
+            return this.allSync(query);
+        });
+    }
+
+    /**
+     * Executes a low-level-all call against the SQLite database connection
+     *
+     * @param query
+     * @private
+     */
+    private allSync<RecordType = any> (
         query: Database.Query
     ): Database.Query.Result<RecordType> {
         const stmt = this.database.prepare(query.query);
@@ -227,11 +246,27 @@ export class SQLiteInstance {
 
     /**
      * Executes a low-level run call against the SQLite database connection
+     * that is wrapped in a mutex to prevent multiple queries from being
+     * executed at the same time
      *
      * @param query
-     * @protected
+     * @private
      */
-    private _run<RecordType = any> (
+    private async runAsync<RecordType = any> (
+        query: Database.Query
+    ): Promise<Database.Query.Result<RecordType>> {
+        return this.mutex.runExclusive(() => {
+            return this.runSync(query);
+        });
+    }
+
+    /**
+     * Executes a low-level run call against the SQLite database connection
+     *
+     * @param query
+     * @private
+     */
+    private runSync<RecordType = any> (
         query: Database.Query
     ): Database.Query.Result<RecordType> {
         const stmt = this.database.prepare(query.query);
@@ -258,33 +293,35 @@ export class SQLiteInstance {
      * @param queries
      * @protected
      */
-    private _transaction<RecordType = any> (
+    private async _transaction<RecordType = any> (
         queries: Database.Query[]
-    ): Database.Query.Result<RecordType>[] {
-        const results: Database.Query.Result<RecordType>[] = [];
+    ): Promise<Database.Query.Result<RecordType>[]> {
+        return this.mutex.runExclusive(() => {
+            const results: Database.Query.Result<RecordType>[] = [];
 
-        const tx = this.database.transaction(() => {
-            for (const query of queries) {
-                if (query.query.toLowerCase().startsWith('select')) {
-                    results.push(this._all(query));
-                } else {
-                    results.push(this._run(query));
+            const tx = this.database.transaction(() => {
+                for (const query of queries) {
+                    if (query.query.toLowerCase().startsWith('select')) {
+                        results.push(this.allSync(query));
+                    } else {
+                        results.push(this.runSync(query));
+                    }
+                }
+            });
+
+            try {
+                tx();
+            } catch (error: any) {
+                if (queries.some(q => !q.noError)) {
+                    if (error instanceof Error) {
+                        throw error;
+                    }
+
+                    throw new Error(error.toString());
                 }
             }
+
+            return results;
         });
-
-        try {
-            tx();
-        } catch (error: any) {
-            if (queries.some(q => !q.noError)) {
-                if (error instanceof Error) {
-                    throw error;
-                }
-
-                throw new Error(error.toString());
-            }
-        }
-
-        return results;
     }
 }
