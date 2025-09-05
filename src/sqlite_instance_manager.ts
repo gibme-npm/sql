@@ -22,6 +22,8 @@ import { createHash } from 'crypto';
 import { resolve } from 'path';
 import { SQLiteInstance } from './sqlite_instance';
 
+export { SQLiteInstance };
+
 /** @ignore */
 const digest = (value: string): string => {
     return createHash('sha512')
@@ -29,8 +31,6 @@ const digest = (value: string): string => {
         .digest()
         .toString('hex');
 };
-
-export { SQLiteInstance };
 
 export class SQLiteInstanceManager {
     private static instances: Map<string, SQLiteInstance> = new Map<string, SQLiteInstance>();

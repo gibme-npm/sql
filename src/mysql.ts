@@ -44,13 +44,15 @@ export class MySQL extends Database {
      * Creates a new instance of the class
      *
      * @param config
+     * @param tableOptions
      * @param override_type
      */
     constructor (
         public readonly config: MySQL.Config = {},
+        tableOptions = 'ENGINE=InnoDB PACK_KEYS=1 ROW_FORMAT=COMPRESSED',
         override_type: Database.Type.MYSQL | Database.Type.MARIADB = Database.Type.MYSQL
     ) {
-        super(override_type, 'ENGINE=InnoDB PACK_KEYS=1 ROW_FORMAT=COMPRESSED');
+        super(override_type, tableOptions);
 
         this.config.host ??= '127.0.0.1';
         this.config.port ??= 3306;
@@ -90,6 +92,20 @@ export class MySQL extends Database {
 
     public on (event: any, listener: (...args: any[]) => void): this {
         return super.on(event, listener);
+    }
+
+    /**
+     * Gets the total number of idle connections in the pool
+     */
+    public get idleConnections (): number {
+        return this.pool.idleConnections();
+    }
+
+    /**
+     * Gets the total number of connections in the pool
+     */
+    public get totalConnections (): number {
+        return this.pool.totalConnections();
     }
 
     /**
@@ -156,31 +172,41 @@ export class MySQL extends Database {
     ): Promise<MySQL.Query.Result<RecordType>[]> {
         const connection = await this.connection();
 
+        const results: MySQL.Query.Result<RecordType>[] = [];
+
         try {
             await this.beginTransaction(connection);
+        } catch (error: any) {
+            await connection.release();
 
-            const results: MySQL.Query.Result<RecordType>[] = [];
+            throw this.make_error(error);
+        }
 
-            for (const query of queries) {
-                try {
-                    results.push(await this._query(query.query, query.values, connection));
-                } catch (error: any) {
-                    if (!query.noError) {
-                        throw this.make_error(error);
-                    }
+        for (const query of queries) {
+            try {
+                const result = await this._query(query.query, query.values, connection);
+
+                results.push(result);
+            } catch (error: any) {
+                if (!query.noError) {
+                    await this.rollbackTransaction(connection);
+
+                    await connection.release();
+
+                    throw this.make_error(error);
                 }
             }
-
-            await this.commitTransaction(connection);
-
-            return results;
-        } catch (error: any) {
-            await this.rollbackTransaction(connection);
-
-            throw error;
-        } finally {
-            connection.release();
         }
+
+        try {
+            await this.commitTransaction(connection);
+        } catch (error: any) {
+            throw this.make_error(error);
+        } finally {
+            await connection.release();
+        }
+
+        return results;
     }
 
     /**

@@ -25,9 +25,10 @@ export { Database };
 
 export default class MariaDB extends MySQL {
     constructor (
-        public readonly config: MySQL.Config = {}
+        public readonly config: MySQL.Config = {},
+        tableOptions = 'ENGINE=InnoDB PACK_KEYS=1 ROW_FORMAT=COMPRESSED'
     ) {
-        super(config, Database.Type.MARIADB);
+        super(config, tableOptions, Database.Type.MARIADB);
     }
 }
 

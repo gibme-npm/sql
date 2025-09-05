@@ -52,6 +52,20 @@ export class SQLite extends Database {
     }
 
     /**
+     * Gets the total number of idle connections in the pool
+     */
+    public get idleConnections (): number {
+        return this.database?.idleConnections ?? 0;
+    }
+
+    /**
+     * Gets the total number of connections in the pool
+     */
+    public get totalConnections (): number {
+        return this.database?.totalConnections ?? 0;
+    }
+
+    /**
      * Closes the database instance
      *
      * Note: closing the db using this method will kill the instance
@@ -220,7 +234,7 @@ export namespace SQLite {
          */
         filename: ':memory:' | string;
         /**
-         * Whether the database should be opened in read only mode
+         * Whether the database should be opened in read-only mode
          * @default false
          */
         readonly: boolean;
@@ -230,7 +244,7 @@ export namespace SQLite {
          */
         foreignKeys: boolean;
         /**
-         * Whether WAL journal mode is enabled by defailt
+         * Whether WAL journal mode is enabled by default
          * @default true
          */
         WALmode: boolean;

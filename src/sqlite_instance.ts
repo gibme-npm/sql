@@ -47,6 +47,20 @@ export class SQLiteInstance {
     }
 
     /**
+     * Gets the total number of idle connections in the pool
+     */
+    public get idleConnections (): number {
+        return this.mutex.isLocked() ? 0 : 1;
+    }
+
+    /**
+     * Gets the total number of connections in the pool
+     */
+    public get totalConnections (): number {
+        return 1;
+    }
+
+    /**
      * Returns if the database is currently open
      */
     public get open (): boolean {
@@ -97,7 +111,7 @@ export class SQLiteInstance {
     }
 
     /**
-     * Opens a SQLite database
+     * Opens an SQLite database
      *
      * @param filename
      * @param readonly
@@ -124,10 +138,6 @@ export class SQLiteInstance {
     public async getPragma (option: string): Promise<unknown> {
         option = option.toLowerCase();
 
-        /**
-         * Execute this call via the low-level calling system outside the normal
-         * queuing provided so that we do not mistakenly block the connection
-         */
         const [rows] = await this.allAsync<{ [key: string]: unknown }>({
             query: `PRAGMA ${option}`
         });
@@ -201,7 +211,7 @@ export class SQLiteInstance {
     public async transaction<RecordType = any> (
         queries: Database.Query[]
     ): Promise<Database.Query.Result<RecordType>[]> {
-        return this._transaction(queries);
+        return this.transactionAsync(queries);
     }
 
     /**
@@ -293,7 +303,7 @@ export class SQLiteInstance {
      * @param queries
      * @protected
      */
-    private async _transaction<RecordType = any> (
+    private async transactionAsync<RecordType = any> (
         queries: Database.Query[]
     ): Promise<Database.Query.Result<RecordType>[]> {
         return this.mutex.runExclusive(() => {

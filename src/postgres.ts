@@ -43,7 +43,9 @@ export class Postgres extends Database {
             this.config.ssl = {
                 rejectUnauthorized: this.config.rejectUnauthorized
             };
-        } if (typeof this.config.ssl === 'object') {
+        }
+
+        if (typeof this.config.ssl === 'object') {
             this.config.ssl = {
                 ...this.config.ssl,
                 rejectUnauthorized: this.config.rejectUnauthorized
@@ -77,6 +79,20 @@ export class Postgres extends Database {
 
     public on (event: any, listener: (...args: any[]) => void): this {
         return super.on(event, listener);
+    }
+
+    /**
+     * Gets the total number of idle connections in the pool
+     */
+    public get idleConnections (): number {
+        return this.pool.idleCount;
+    }
+
+    /**
+     * Gets the total number of connections in the pool
+     */
+    public get totalConnections (): number {
+        return this.pool.totalCount;
     }
 
     /**
@@ -150,31 +166,41 @@ export class Postgres extends Database {
     ): Promise<Postgres.Query.Result<RecordType>[]> {
         const connection = await this.connection();
 
+        const results: Postgres.Query.Result<RecordType>[] = [];
+
         try {
             await this.beginTransaction(connection);
+        } catch (error: any) {
+            await this.release(connection);
 
-            const results: Postgres.Query.Result<RecordType>[] = [];
+            throw this.make_error(error);
+        }
 
-            for (const query of queries) {
-                try {
-                    results.push(await this._query(query.query, query.values, connection));
-                } catch (error: any) {
-                    if (!query.noError) {
-                        throw new Error(error);
-                    }
+        for (const query of queries) {
+            try {
+                const result = await this._query(query.query, query.values, connection);
+
+                results.push(result);
+            } catch (error: any) {
+                if (!query.noError) {
+                    await this.rollbackTransaction(connection);
+
+                    await this.release(connection);
+
+                    throw this.make_error(error);
                 }
             }
+        }
 
+        try {
             await this.commitTransaction(connection);
-
-            return results;
         } catch (error: any) {
-            await this.rollbackTransaction(connection);
-
-            throw error;
+            throw this.make_error(error);
         } finally {
             await this.release(connection);
         }
+
+        return results;
     }
 
     /**

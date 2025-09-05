@@ -43,6 +43,19 @@ export abstract class Database extends EventEmitter {
         }
     }
 
+    /**
+     * Gets the total number of idle connections in the pool
+     */
+    abstract get idleConnections(): number;
+
+    /**
+     * Gets the total number of connections in the pool
+     */
+    abstract get totalConnections(): number;
+
+    /**
+     * Closes the database connection
+     */
     abstract close(): Promise<void>;
 
     /**
@@ -99,8 +112,16 @@ export abstract class Database extends EventEmitter {
         ...values: any[]
     ): Promise<Database.Query.Result<RecordType>>;
 
+    /**
+     * Performs a database transaction with the specified queries
+     * @param queries
+     */
     abstract transaction<RecordType = any>(queries: Database.Query[]): Promise<Database.Query.Result<RecordType>[]>;
 
+    /**
+     * Switches the database connection to the specified database
+     * @param database
+     */
     abstract use(database: string): Promise<Database>;
 
     /**
@@ -141,6 +162,7 @@ export abstract class Database extends EventEmitter {
 
     /**
      * Prepares the creation of an index on the specified table
+     *
      * @param table
      * @param fields
      * @param type
@@ -155,6 +177,7 @@ export abstract class Database extends EventEmitter {
 
     /**
      * Prepares the creation of a table including the relevant indexes and constraints
+     *
      * @param name
      * @param fields
      * @param primaryKey
