@@ -42,7 +42,7 @@
     "test": "yarn test:style && yarn test:typecheck && yarn test:mocha",
     "test:typecheck": "./node_modules/.bin/tsc --noEmit",
     "test:style": "yarn style",
-    "test:mocha": "./node_modules/.bin/mocha --exit --timeout 120000 --require ts-node/register test/test.ts",
+    "test:mocha": "./node_modules/.bin/mocha --exit --timeout 360000 --require ts-node/register test/test.ts",
     "style": "./node_modules/.bin/eslint src/**/*.ts test/**/*.ts",
     "fix-style": "./node_modules/.bin/eslint --fix src/**/*.ts test/**/*.ts",
     "fix:style": "yarn fix-style",

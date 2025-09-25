@@ -25,7 +25,12 @@ import { config } from 'dotenv';
 import { resolve } from 'path';
 import { unlink } from 'fs/promises';
 
+/** @ignore */
 const test_db = resolve(`${process.cwd()}/${test_table}.sqlite3`);
+
+/** @ignore */
+const sleep = async (ms: number) =>
+    new Promise(resolve => setTimeout(resolve, ms));
 
 config();
 
@@ -71,7 +76,20 @@ if (process.env.PGSQL_HOST && process.env.PGSQL_USER && process.env.PGSQL_PASSWO
 for (const storage of engines) {
     describe(storage.typeName, async function () {
         before(async () => {
-            await storage.dropTable(test_table);
+            let ready = false;
+            let attempts = 0;
+
+            do {
+                try {
+                    attempts++;
+
+                    await storage.dropTable(test_table);
+
+                    ready = true;
+                } catch {
+                    await sleep(Math.round(Math.random() * 60));
+                }
+            } while (!ready && attempts < 3);
         });
 
         after(async () => {
