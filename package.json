@@ -1,6 +1,6 @@
 {
   "name": "@gibme/sql",
-  "version": "20.1.1",
+  "version": "20.1.2",
   "description": "A simple helper/wrapper for common DBMS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -88,7 +88,7 @@
     "eslint-plugin-n": "^16.6.2",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^6.1.1",
-    "mocha": "^11.7.1",
+    "mocha": "^11.7.5",
     "ts-node": "^10.9.2",
     "typedoc": "^0.28.4",
     "typescript": "^5.9.2"
