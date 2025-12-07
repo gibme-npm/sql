@@ -24,7 +24,7 @@ import { config } from 'dotenv';
 import { createHash } from 'crypto';
 import { Database } from '../src';
 
-config();
+config({ quiet: true });
 
 const digest = (value: string): string => {
     return createHash('sha512')

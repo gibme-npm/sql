@@ -32,7 +32,7 @@ const test_db = resolve(`${process.cwd()}/${test_table}.sqlite3`);
 const sleep = async (ms: number) =>
     new Promise(resolve => setTimeout(resolve, ms));
 
-config();
+config({ quiet: true });
 
 const engines: Database[] = [
     new SQLite({ filename: test_db })

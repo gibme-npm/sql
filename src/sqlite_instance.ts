@@ -40,7 +40,6 @@ const pragmaFunctionCalls = [
 export class SQLiteInstance {
     private readonly mutex = new Mutex();
 
-    // eslint-disable-next-line no-useless-constructor
     protected constructor (
         private readonly database: SQLiteDatabase
     ) {
