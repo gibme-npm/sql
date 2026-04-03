@@ -43,15 +43,9 @@ export class Postgres extends Database {
             this.config.ssl = {
                 rejectUnauthorized: this.config.rejectUnauthorized
             };
-        }
-
-        if (typeof this.config.ssl === 'object') {
+        } else if (typeof this.config.ssl === 'object') {
             this.config.ssl = {
                 ...this.config.ssl,
-                rejectUnauthorized: this.config.rejectUnauthorized
-            };
-        } else {
-            this.config.ssl = {
                 rejectUnauthorized: this.config.rejectUnauthorized
             };
         }

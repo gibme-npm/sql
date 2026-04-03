@@ -60,6 +60,7 @@ export class MySQL extends Database {
         this.config.connectTimeout ??= 30_000;
         this.config.useSSL ??= false;
         this.config.rejectUnauthorized ??= false;
+        this.config.allowPublicKeyRetrieval ??= true;
         this.config.multipleStatements = false;
 
         if (this.config.useSSL) {

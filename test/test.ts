@@ -69,7 +69,8 @@ if (process.env.PGSQL_HOST && process.env.PGSQL_USER && process.env.PGSQL_PASSWO
         port: process.env.PGSQL_PORT ? parseInt(process.env.PGSQL_PORT) : undefined,
         user: process.env.PGSQL_USER,
         password: process.env.PGSQL_PASSWORD,
-        database: process.env.PGSQL_DATABASE
+        database: process.env.PGSQL_DATABASE,
+        ssl: process.env.PGSQL_SSL === 'true'
     }));
 }
 
