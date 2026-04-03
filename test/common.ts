@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { describe, it } from 'mocha';
+import { describe, it } from 'node:test';
 import assert from 'assert';
 import { config } from 'dotenv';
 import { createHash } from 'crypto';

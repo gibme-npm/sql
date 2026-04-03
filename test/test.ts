@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { after, describe } from 'mocha';
+import { after, before, describe } from 'node:test';
 import { Database, MySQL, Postgres, SQLite, MariaDB } from '../src';
 import { runTests, test_table } from './common';
 import { config } from 'dotenv';
