@@ -9,13 +9,98 @@ on:
     - cron: '30 3 * * 1,6'
 
 jobs:
-  build:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['22', '24']
+    name: ubuntu-latest - Node ${{ matrix.node }} Test
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: testpass
+          MYSQL_DATABASE: testdb
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+      mariadb:
+        image: mariadb:latest
+        env:
+          MYSQL_ROOT_PASSWORD: testpass
+          MYSQL_DATABASE: testdb
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
+      name: Set up Node (NPM Cache)
+      with:
+        node-version: ${{ matrix.node }}
+        cache: npm
+        cache-dependency-path: package-lock.json
+      if: hashFiles('package-lock.json') != ''
+    - uses: actions/setup-node@v6
+      name: Set up Node (Yarn Cache)
+      with:
+        node-version: ${{ matrix.node }}
+        cache: yarn
+        cache-dependency-path: yarn.lock
+      if: hashFiles('yarn.lock') != ''
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+    - name: Install Yarn
+      run: npm install -g yarn
+    - name: Install Dependencies
+      run: yarn
+    - name: Execute Unit Tests
+      run: yarn test
+      env:
+        MYSQL_HOST: 127.0.0.1
+        MYSQL_USER: root
+        MYSQL_PASSWORD: testpass
+        MYSQL_DATABASE: testdb
+        MARIADB_HOST: 127.0.0.1
+        MARIADB_PORT: '3307'
+        MARIADB_USER: root
+        MARIADB_PASSWORD: testpass
+        MARIADB_DATABASE: testdb
+        PGSQL_HOST: 127.0.0.1
+        PGSQL_USER: postgres
+        PGSQL_PASSWORD: testpass
+        PGSQL_DATABASE: testdb
+        SQL_TABLE: ubuntu-${{ matrix.node }}-${{ github.sha }}-${{ github.event_name }}
+
+  build-other:
     runs-on: ${{ matrix.os }}
     strategy:
-      max-parallel: 1
-      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [windows-latest, macos-latest]
         node: ['22', '24']
     name: ${{ matrix.os }} - Node ${{ matrix.node }} Test
     steps:
@@ -47,24 +132,10 @@ jobs:
     - name: Execute Unit Tests
       run: yarn test
       env:
-        MYSQL_HOST: ${{ secrets.MYSQL_HOST }}
-        MYSQL_USER: ${{ secrets.MYSQL_USER }}
-        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
-        MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
-        MARIADB_HOST: ${{ secrets.MARIADB_HOST }}
-        MARIADB_USER: ${{ secrets.MARIADB_USER }}
-        MARIADB_PORT: ${{ secrets.MARIADB_PORT }}
-        MARIADB_PASSWORD: ${{ secrets.MARIADB_PASSWORD }}
-        MARIADB_DATABASE: ${{ secrets.MARIADB_DATABASE }}
-        MARIADB_SSL: ${{ secrets.MARIADB_SSL }}
-        PGSQL_HOST: ${{ secrets.PGSQL_HOST }}
-        PGSQL_USER: ${{ secrets.PGSQL_USER }}
-        PGSQL_PASSWORD: ${{ secrets.PGSQL_PASSWORD }}
-        PGSQL_DATABASE: ${{ secrets.PGSQL_DATABASE }}
         SQL_TABLE: ${{ matrix.os }}-${{ matrix.node }}-${{ github.sha }}-${{ github.event_name }}
 
   publish:
-    needs: build
+    needs: [build-linux, build-other]
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
